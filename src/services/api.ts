@@ -130,6 +130,11 @@ export const studentAPI = {
   getDashboardData: async (): Promise<DashboardData[]> => {
     const response = await api.get('/student/assessments/dashboard');
     return response.data;
+  },
+
+  getDetailedResults: async (assessmentId: number) => {
+    const response = await api.get(`/student/assessments/results/detailed/${assessmentId}`);
+    return response.data;
   }
 };
 

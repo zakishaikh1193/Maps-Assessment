@@ -60,19 +60,21 @@ const AssessmentPage: React.FC = () => {
       setFeedback({ isCorrect: response.isCorrect, show: true });
 
       // Wait for feedback display, then continue
-      setTimeout(() => {
+      setTimeout(async () => {
         if (response.completed) {
-          navigate('/results', { 
-            state: { 
-              ritScore: response.ritScore,
-              correctAnswers: response.correctAnswers,
-              totalQuestions: response.totalQuestions,
-              duration: response.duration,
-              subjectId,
-              period,
-              message: response.message
-            }
-          });
+          try {
+            // Fetch detailed results
+            const detailedResults = await studentAPI.getDetailedResults(response.assessmentId);
+            navigate('/results', { 
+              state: { 
+                ...detailedResults,
+                subjectId,
+                period
+              }
+            });
+          } catch (error) {
+            console.error('Failed to fetch detailed results:', error);
+          }
         } else if (response.question) {
           setCurrentQuestion(response.question);
           setSelectedAnswer(null);

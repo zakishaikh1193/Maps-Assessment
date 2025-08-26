@@ -187,7 +187,8 @@ export const startAssessment = async (req, res) => {
       period,
       currentDifficulty: firstQuestion.difficulty_level,
       questionCount: 0,
-      highestCorrectDifficulty: 0, // Track RIT score
+      currentRIT: 0, // Current RIT based on last answered question
+      highestCorrectDifficulty: 0, // Track final RIT score
       usedQuestions: new Set(), // Track used questions
       startTime: Date.now(),
       startingDifficulty: startingDifficulty // Store the starting difficulty for reference
@@ -269,7 +270,14 @@ export const submitAnswer = async (req, res) => {
     session.questionCount++;
     session.usedQuestions.add(questionId);
 
-    // Update highest correct difficulty (RIT score calculation)
+    // Update current RIT based on the question that was just answered
+    if (isCorrect) {
+      // If answered correctly, current RIT becomes the difficulty of this question
+      session.currentRIT = question.difficulty_level;
+    }
+    // If answered incorrectly, current RIT stays the same
+    
+    // Also update highest correct difficulty for final RIT score calculation
     if (isCorrect && question.difficulty_level > session.highestCorrectDifficulty) {
       session.highestCorrectDifficulty = question.difficulty_level;
     }
@@ -297,10 +305,7 @@ export const submitAnswer = async (req, res) => {
 
       return res.json({
         completed: true,
-        ritScore,
-        correctAnswers,
-        totalQuestions: 10,
-        duration,
+        assessmentId: assessmentId,
         message: `Assessment completed! Your RIT score is ${ritScore}`
       });
     }
@@ -322,7 +327,7 @@ export const submitAnswer = async (req, res) => {
     res.json({
       completed: false,
       isCorrect,
-      currentRIT: session.highestCorrectDifficulty,
+      currentRIT: session.currentRIT,
       nextDifficulty: nextDifficulty,
       question: {
         id: nextQuestion.id,
@@ -385,6 +390,130 @@ export const getResultsBySubject = async (req, res) => {
     console.error('Error fetching results:', error);
     res.status(500).json({
       error: 'Failed to fetch results',
+      code: 'FETCH_RESULTS_ERROR'
+    });
+  }
+};
+
+// Get detailed assessment results
+export const getAssessmentResults = async (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+    const studentId = req.user.id;
+
+    // Get current assessment details
+    const currentAssessment = await executeQuery(`
+      SELECT 
+        a.id,
+        a.student_id,
+        a.subject_id,
+        a.assessment_period,
+        a.rit_score,
+        a.correct_answers,
+        a.total_questions,
+        a.date_taken,
+        a.duration_minutes,
+        a.year,
+        s.name as subject_name
+      FROM assessments a
+      JOIN subjects s ON a.subject_id = s.id
+      WHERE a.id = ? AND a.student_id = ? AND a.rit_score IS NOT NULL
+    `, [assessmentId, studentId]);
+
+    if (currentAssessment.length === 0) {
+      return res.status(404).json({
+        error: 'Assessment not found',
+        code: 'ASSESSMENT_NOT_FOUND'
+      });
+    }
+
+    const assessment = currentAssessment[0];
+
+    // Get previous RIT score (most recent completed assessment for same subject and student)
+    const previousAssessment = await executeQuery(`
+      SELECT rit_score, date_taken, assessment_period, year
+      FROM assessments 
+      WHERE student_id = ? 
+      AND subject_id = ? 
+      AND id != ? 
+      AND rit_score IS NOT NULL
+      ORDER BY date_taken DESC 
+      LIMIT 1
+    `, [studentId, assessment.subject_id, assessmentId]);
+
+    // Get detailed response data
+    const responses = await executeQuery(`
+      SELECT 
+        ar.question_order,
+        ar.is_correct,
+        ar.question_difficulty,
+        q.question_text,
+        q.options,
+        ar.selected_option_index,
+        q.correct_option_index
+      FROM assessment_responses ar
+      JOIN questions q ON ar.question_id = q.id
+      WHERE ar.assessment_id = ?
+      ORDER BY ar.question_order
+    `, [assessmentId]);
+
+    // Calculate statistics
+    const totalQuestions = assessment.total_questions;
+    const correctAnswers = assessment.correct_answers;
+    const incorrectAnswers = totalQuestions - correctAnswers;
+    const previousRIT = previousAssessment.length > 0 ? previousAssessment[0].rit_score : null;
+    const currentRIT = assessment.rit_score;
+
+    // Format responses for frontend
+    const formattedResponses = responses.map(response => ({
+      questionNumber: response.question_order,
+      isCorrect: response.is_correct,
+      difficulty: response.question_difficulty,
+      questionText: response.question_text,
+      options: (() => {
+        if (typeof response.options === 'string') {
+          try {
+            return JSON.parse(response.options);
+          } catch (parseError) {
+            return [];
+          }
+        }
+        return response.options;
+      })(),
+      selectedAnswer: response.selected_option_index,
+      correctAnswer: response.correct_option_index
+    }));
+
+    res.json({
+      assessment: {
+        id: assessment.id,
+        subjectName: assessment.subject_name,
+        period: assessment.assessment_period,
+        year: assessment.year,
+        dateTaken: assessment.date_taken,
+        duration: assessment.duration_minutes
+      },
+      statistics: {
+        totalQuestions,
+        correctAnswers,
+        incorrectAnswers,
+        previousRIT,
+        currentRIT,
+        accuracy: Math.round((correctAnswers / totalQuestions) * 100)
+      },
+      responses: formattedResponses,
+      previousAssessment: previousAssessment.length > 0 ? {
+        ritScore: previousAssessment[0].rit_score,
+        dateTaken: previousAssessment[0].date_taken,
+        period: previousAssessment[0].assessment_period,
+        year: previousAssessment[0].year
+      } : null
+    });
+
+  } catch (error) {
+    console.error('Error fetching assessment results:', error);
+    res.status(500).json({
+      error: 'Failed to fetch assessment results',
       code: 'FETCH_RESULTS_ERROR'
     });
   }

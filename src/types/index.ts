@@ -56,7 +56,44 @@ export interface AssessmentResponse {
   currentRIT?: number;
   nextDifficulty?: number;
   message?: string;
+  assessmentId?: number;
   question?: AssessmentQuestion;
+}
+
+export interface AssessmentResult {
+  questionNumber: number;
+  isCorrect: boolean;
+  difficulty: number;
+  questionText: string;
+  options: string[];
+  selectedAnswer: number;
+  correctAnswer: number;
+}
+
+export interface DetailedAssessmentResults {
+  assessment: {
+    id: number;
+    subjectName: string;
+    period: string;
+    year: number;
+    dateTaken: string;
+    duration: number;
+  };
+  statistics: {
+    totalQuestions: number;
+    correctAnswers: number;
+    incorrectAnswers: number;
+    previousRIT: number | null;
+    currentRIT: number;
+    accuracy: number;
+  };
+  responses: AssessmentResult[];
+  previousAssessment: {
+    ritScore: number;
+    dateTaken: string;
+    period: string;
+    year: number;
+  } | null;
 }
 
 export interface DashboardData {
