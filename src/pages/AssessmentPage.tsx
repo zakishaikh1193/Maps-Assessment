@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { studentAPI } from '../services/api';
 import { AssessmentQuestion, AssessmentResponse } from '../types';
@@ -17,14 +17,22 @@ const AssessmentPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ isCorrect?: boolean; show: boolean }>({ show: false });
   const [startTime, setStartTime] = useState<number>(Date.now());
+  const hasStartedRef = useRef(false);
 
   useEffect(() => {
-    startAssessment();
+    if (hasStartedRef.current) return;
+    hasStartedRef.current = true;
+    
+    const initAssessment = async () => {
+      await startAssessment();
+    };
+    
+    initAssessment();
   }, []);
 
   const startAssessment = async () => {
     try {
-      const response = await studentAPI.startAssessment(subjectId, period);
+      const response = await studentAPI.startAssessment(subjectId, period as 'Fall' | 'Winter' | 'Spring');
       setAssessmentId(response.assessmentId);
       setCurrentQuestion(response.question);
       setStartTime(Date.now());

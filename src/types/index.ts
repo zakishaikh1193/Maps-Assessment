@@ -34,6 +34,7 @@ export interface Assessment {
   totalQuestions: number;
   dateTaken: string;
   durationMinutes?: number;
+  year: number;
   subjectName?: string;
 }
 

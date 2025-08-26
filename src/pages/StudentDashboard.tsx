@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Subject, DashboardData } from '../types';
 import { subjectsAPI, studentAPI } from '../services/api';
@@ -11,6 +11,7 @@ const StudentDashboard: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [dashboardData, setDashboardData] = useState<DashboardData[]>([]);
   const [loading, setLoading] = useState(true);
+  const hasLoadedRef = useRef(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -26,6 +27,8 @@ const StudentDashboard: React.FC = () => {
   const periods = [currentSeason] as const;
 
   useEffect(() => {
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
     loadDashboardData();
   }, []);
 

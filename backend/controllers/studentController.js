@@ -16,38 +16,107 @@ const getNextQuestionDifficulty = (currentDifficulty, isCorrect) => {
 };
 
 // Find closest available question to target difficulty
-const findClosestQuestion = async (targetDifficulty, subjectId, assessmentId) => {
-  // First try to find questions within ±10 points of target
-  let questions = await executeQuery(`
-    SELECT id, question_text, options, difficulty_level 
-    FROM questions 
-    WHERE subject_id = ? 
-    AND difficulty_level BETWEEN ? AND ?
-    AND id NOT IN (
-      SELECT question_id FROM assessment_responses WHERE assessment_id = ?
-    )
-    ORDER BY ABS(difficulty_level - ?) ASC, RAND()
-    LIMIT 1
-  `, [
-    subjectId,
-    targetDifficulty - 10,
-    targetDifficulty + 10,
-    assessmentId,
-    targetDifficulty
-  ]);
-
-  // If no questions in range, expand search
-  if (questions.length === 0) {
+const findClosestQuestion = async (targetDifficulty, subjectId, assessmentId, usedQuestions = null) => {
+  let questions;
+  
+  if (assessmentId && usedQuestions) {
+    // If assessmentId exists and we have usedQuestions, exclude both database records and in-memory used questions
+    const usedQuestionsArray = Array.from(usedQuestions);
+    const placeholders = usedQuestionsArray.map(() => '?').join(',');
+    
     questions = await executeQuery(`
       SELECT id, question_text, options, difficulty_level 
       FROM questions 
-      WHERE subject_id = ?
+      WHERE subject_id = ? 
+      AND difficulty_level BETWEEN ? AND ?
+      AND id NOT IN (
+        SELECT question_id FROM assessment_responses WHERE assessment_id = ?
+      )
+      AND id NOT IN (${placeholders || 'NULL'})
+      ORDER BY ABS(difficulty_level - ?) ASC, RAND()
+      LIMIT 1
+    `, [
+      subjectId,
+      targetDifficulty - 10,
+      targetDifficulty + 10,
+      assessmentId,
+      ...usedQuestionsArray,
+      targetDifficulty
+    ]);
+
+    // If no questions in range, expand search
+    if (questions.length === 0) {
+      questions = await executeQuery(`
+        SELECT id, question_text, options, difficulty_level 
+        FROM questions 
+        WHERE subject_id = ?
+        AND id NOT IN (
+          SELECT question_id FROM assessment_responses WHERE assessment_id = ?
+        )
+        AND id NOT IN (${placeholders || 'NULL'})
+        ORDER BY ABS(difficulty_level - ?) ASC, RAND()
+        LIMIT 1
+      `, [subjectId, assessmentId, ...usedQuestionsArray, targetDifficulty]);
+    }
+  } else if (assessmentId) {
+    // If only assessmentId exists, exclude already used questions from database
+    questions = await executeQuery(`
+      SELECT id, question_text, options, difficulty_level 
+      FROM questions 
+      WHERE subject_id = ? 
+      AND difficulty_level BETWEEN ? AND ?
       AND id NOT IN (
         SELECT question_id FROM assessment_responses WHERE assessment_id = ?
       )
       ORDER BY ABS(difficulty_level - ?) ASC, RAND()
       LIMIT 1
-    `, [subjectId, assessmentId, targetDifficulty]);
+    `, [
+      subjectId,
+      targetDifficulty - 10,
+      targetDifficulty + 10,
+      assessmentId,
+      targetDifficulty
+    ]);
+
+    // If no questions in range, expand search
+    if (questions.length === 0) {
+      questions = await executeQuery(`
+        SELECT id, question_text, options, difficulty_level 
+        FROM questions 
+        WHERE subject_id = ?
+        AND id NOT IN (
+          SELECT question_id FROM assessment_responses WHERE assessment_id = ?
+        )
+        ORDER BY ABS(difficulty_level - ?) ASC, RAND()
+        LIMIT 1
+      `, [subjectId, assessmentId, targetDifficulty]);
+    }
+  } else {
+    // If no assessmentId (first question), just get any question
+    questions = await executeQuery(`
+      SELECT id, question_text, options, difficulty_level 
+      FROM questions 
+      WHERE subject_id = ? 
+      AND difficulty_level BETWEEN ? AND ?
+      ORDER BY ABS(difficulty_level - ?) ASC, RAND()
+      LIMIT 1
+    `, [
+      subjectId,
+      targetDifficulty - 10,
+      targetDifficulty + 10,
+      targetDifficulty
+    ]);
+
+    // If no questions in range, expand search
+    if (questions.length === 0) {
+      questions = await executeQuery(`
+        SELECT id, question_text, options, difficulty_level 
+        FROM questions 
+        WHERE subject_id = ?
+        ORDER BY ABS(difficulty_level - ?) ASC, RAND()
+        LIMIT 1
+      `, [subjectId, targetDifficulty]);
+    }
   }
 
   return questions.length > 0 ? questions[0] : null;
@@ -58,6 +127,7 @@ export const startAssessment = async (req, res) => {
   try {
     const { subjectId, period } = req.body;
     const studentId = req.user.id;
+    const currentYear = new Date().getFullYear();
 
     // Validation
     if (!subjectId || !period) {
@@ -74,21 +144,26 @@ export const startAssessment = async (req, res) => {
       });
     }
 
-    // Check if student has already taken this assessment
-    const existingAssessments = await executeQuery(
-      'SELECT id FROM assessments WHERE student_id = ? AND subject_id = ? AND assessment_period = ?',
-      [studentId, subjectId, period]
+    // Note: Removed validation to allow multiple assessments for demo purposes
+
+    // Check for previous RIT score to determine starting difficulty (within current year)
+    const previousAssessments = await executeQuery(
+      'SELECT rit_score FROM assessments WHERE student_id = ? AND subject_id = ? AND year = ? AND rit_score IS NOT NULL ORDER BY date_taken DESC LIMIT 1',
+      [studentId, subjectId, currentYear]
     );
 
-    if (existingAssessments.length > 0) {
-      return res.status(400).json({
-        error: 'Assessment already completed for this period',
-        code: 'ASSESSMENT_ALREADY_COMPLETED'
-      });
+    let startingDifficulty = 225; // Default starting difficulty
+    
+    if (previousAssessments.length > 0) {
+      const previousRIT = previousAssessments[0].rit_score;
+      startingDifficulty = previousRIT; // Use previous RIT as starting point
+      console.log(`Using previous RIT score ${previousRIT} as starting difficulty for student ${studentId}, subject ${subjectId}`);
+    } else {
+      console.log(`No previous RIT score found, using default difficulty ${startingDifficulty} for student ${studentId}, subject ${subjectId}`);
     }
 
-    // Get first question (MAP starting difficulty: ~225)
-    const firstQuestion = await findClosestQuestion(225, subjectId, null);
+    // Get first question based on adaptive starting difficulty
+    const firstQuestion = await findClosestQuestion(startingDifficulty, subjectId, null);
 
     if (!firstQuestion) {
       return res.status(404).json({
@@ -97,10 +172,10 @@ export const startAssessment = async (req, res) => {
       });
     }
     
-    // Create assessment record
+    // Create assessment record with current year
     const result = await executeQuery(
-      'INSERT INTO assessments (student_id, subject_id, assessment_period) VALUES (?, ?, ?)',
-      [studentId, subjectId, period]
+      'INSERT INTO assessments (student_id, subject_id, assessment_period, year) VALUES (?, ?, ?, ?)',
+      [studentId, subjectId, period, currentYear]
     );
 
     // Initialize session with MAP adaptive tracking
@@ -114,7 +189,8 @@ export const startAssessment = async (req, res) => {
       questionCount: 0,
       highestCorrectDifficulty: 0, // Track RIT score
       usedQuestions: new Set(), // Track used questions
-      startTime: Date.now()
+      startTime: Date.now(),
+      startingDifficulty: startingDifficulty // Store the starting difficulty for reference
     });
 
     res.json({
@@ -234,7 +310,7 @@ export const submitAnswer = async (req, res) => {
     session.currentDifficulty = nextDifficulty;
 
     // Find next question using adaptive algorithm
-    const nextQuestion = await findClosestQuestion(nextDifficulty, session.subjectId, assessmentId);
+    const nextQuestion = await findClosestQuestion(nextDifficulty, session.subjectId, assessmentId, session.usedQuestions);
 
     if (!nextQuestion) {
       return res.status(404).json({
@@ -290,11 +366,12 @@ export const getResultsBySubject = async (req, res) => {
         a.total_questions,
         a.date_taken,
         a.duration_minutes,
+        a.year,
         s.name as subject_name
       FROM assessments a
       JOIN subjects s ON a.subject_id = s.id
       WHERE a.student_id = ? AND a.subject_id = ? AND a.rit_score IS NOT NULL
-      ORDER BY 
+      ORDER BY a.year DESC,
         CASE a.assessment_period 
           WHEN 'Fall' THEN 1 
           WHEN 'Winter' THEN 2 
@@ -326,12 +403,13 @@ export const getDashboardData = async (req, res) => {
         a.correct_answers,
         a.total_questions,
         a.date_taken,
+        a.year,
         s.id as subject_id,
         s.name as subject_name
       FROM assessments a
       JOIN subjects s ON a.subject_id = s.id
       WHERE a.student_id = ? AND a.rit_score IS NOT NULL
-      ORDER BY s.name, 
+      ORDER BY s.name, a.year DESC,
         CASE a.assessment_period 
           WHEN 'Fall' THEN 1 
           WHEN 'Winter' THEN 2 

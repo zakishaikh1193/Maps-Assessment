@@ -34,13 +34,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const savedToken = localStorage.getItem('token');
       const savedUser = localStorage.getItem('user');
 
+      console.log('AuthContext init - savedToken exists:', !!savedToken);
+      console.log('AuthContext init - savedUser exists:', !!savedUser);
+
       if (savedToken && savedUser) {
         try {
           // Verify token is still valid
           await authAPI.verifyToken();
+          const parsedUser = JSON.parse(savedUser);
+          console.log('AuthContext init - loading user from localStorage:', parsedUser);
+          console.log('AuthContext init - user role:', parsedUser.role);
+          
           setToken(savedToken);
-          setUser(JSON.parse(savedUser));
+          setUser(parsedUser);
         } catch (error) {
+          console.log('AuthContext init - token invalid, clearing localStorage');
           // Token is invalid, clear storage
           localStorage.removeItem('token');
           localStorage.removeItem('user');
@@ -57,21 +65,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await authAPI.login(username, password);
       const { token: newToken, user: userData } = response;
 
+      console.log('Login - storing user data:', userData);
+      console.log('Login - user role:', userData.role);
+      
       localStorage.setItem('token', newToken);
       localStorage.setItem('user', JSON.stringify(userData));
       
       setToken(newToken);
       setUser(userData);
+      
+      console.log('Login - localStorage updated');
     } catch (error) {
       throw error;
     }
   };
 
   const logout = () => {
+    console.log('Logout called - clearing localStorage');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
+    console.log('Logout completed - localStorage cleared');
+    
+    // Force a page reload to ensure clean state
+    window.location.href = '/login';
   };
 
   const value = {
