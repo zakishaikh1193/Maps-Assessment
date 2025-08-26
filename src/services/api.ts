@@ -135,6 +135,11 @@ export const studentAPI = {
   getDetailedResults: async (assessmentId: number) => {
     const response = await api.get(`/student/assessments/results/detailed/${assessmentId}`);
     return response.data;
+  },
+
+  getGrowthOverTime: async (subjectId: number) => {
+    const response = await api.get(`/student/assessments/growth/${subjectId}`);
+    return response.data;
   }
 };
 

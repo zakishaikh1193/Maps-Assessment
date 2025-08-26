@@ -84,6 +84,15 @@ export const validateSubjectId = [
   handleValidationErrors
 ];
 
+// Assessment ID parameter validation
+export const validateAssessmentId = [
+  param('assessmentId')
+    .isInt({ min: 1 })
+    .withMessage('Assessment ID must be a positive integer'),
+  
+  handleValidationErrors
+];
+
 // Pagination validation
 export const validatePagination = [
   query('page')

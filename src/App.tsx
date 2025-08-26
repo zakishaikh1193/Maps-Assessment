@@ -7,6 +7,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import StudentDashboard from './pages/StudentDashboard';
 import AssessmentPage from './pages/AssessmentPage';
 import ResultsPage from './pages/ResultsPage';
+import GrowthPage from './pages/GrowthPage';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
@@ -56,6 +57,14 @@ const AppContent: React.FC = () => {
         element={
           <ProtectedRoute requiredRole="student">
             <ResultsPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/growth/:subjectId" 
+        element={
+          <ProtectedRoute requiredRole="student">
+            <GrowthPage />
           </ProtectedRoute>
         } 
       />

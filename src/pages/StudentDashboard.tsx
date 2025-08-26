@@ -235,6 +235,18 @@ const StudentDashboard: React.FC = () => {
                         </div>
                       )}
                     </div>
+                    
+                    {/* Growth Chart Button */}
+                    {getCompletedAssessments(subject.id).length > 0 && (
+                      <div className="mt-3">
+                        <button
+                          onClick={() => navigate(`/growth/${subject.id}`)}
+                          className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
+                        >
+                          View Growth Chart
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DetailedAssessmentResults, AssessmentResult } from '../types';
 import Navigation from '../components/Navigation';
+import DifficultyProgressionChart from '../components/DifficultyProgressionChart';
+import GrowthOverTimeChart from '../components/GrowthOverTimeChart';
 import { 
   Trophy, 
   Target, 
@@ -14,7 +16,9 @@ import {
   TrendingDown,
   Calendar,
   BookOpen,
-  BarChart3
+  BarChart3,
+  BarChart,
+  LineChart
 } from 'lucide-react';
 
 const ResultsPage: React.FC = () => {
@@ -22,6 +26,9 @@ const ResultsPage: React.FC = () => {
   const navigate = useNavigate();
   const [results, setResults] = useState<DetailedAssessmentResults | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'assessment' | 'overall'>('assessment');
+  const [growthData, setGrowthData] = useState<any>(null);
+  const [growthLoading, setGrowthLoading] = useState(false);
 
   useEffect(() => {
     // Check if we have detailed results or basic results
@@ -34,6 +41,29 @@ const ResultsPage: React.FC = () => {
       setLoading(false);
     }
   }, [location.state]);
+
+  // Fetch growth data when switching to overall tab
+  useEffect(() => {
+    if (activeTab === 'overall' && results && !growthData && !growthLoading) {
+      setGrowthLoading(true);
+      // Import the API function dynamically to avoid circular dependencies
+      import('../services/api').then(({ studentAPI }) => {
+        // We need to get the subject ID from the assessment ID
+        // For now, we'll use a default subject ID (4 for Computer Science)
+        // In a real app, you'd get this from the assessment details
+        const subjectId = 4; // Default to Computer Science
+        studentAPI.getGrowthOverTime(subjectId)
+          .then(data => {
+            setGrowthData(data);
+            setGrowthLoading(false);
+          })
+          .catch(error => {
+            console.error('Error fetching growth data:', error);
+            setGrowthLoading(false);
+          });
+      });
+    }
+  }, [activeTab, results, growthData, growthLoading]);
 
   const getScoreColor = (score: number) => {
     if (score >= 300) return 'text-purple-600';
@@ -158,8 +188,43 @@ const ResultsPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Main Score Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-8">
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1 mb-8">
+          <div className="flex">
+            <button
+              onClick={() => setActiveTab('assessment')}
+              className={`flex-1 px-6 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'assessment'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <BarChart className="h-4 w-4" />
+                <span>ASSESSMENT REPORT</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('overall')}
+              className={`flex-1 px-6 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'overall'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <LineChart className="h-4 w-4" />
+                <span>OVERALL REPORT</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Assessment Report Tab Content */}
+        {activeTab === 'assessment' && (
+          <>
+            {/* Main Score Card */}
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-8">
           <div className="text-center mb-8">
             <div className="mb-4">
               <div className={`text-6xl font-bold ${getScoreColor(results.statistics.currentRIT)} mb-2`}>
@@ -265,6 +330,15 @@ const ResultsPage: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Difficulty Progression Chart */}
+        <div className="mb-8">
+          <DifficultyProgressionChart
+            data={results.difficultyProgression}
+            currentRIT={results.statistics.currentRIT}
+            previousRIT={results.statistics.previousRIT}
+          />
         </div>
 
         {/* Previous Assessment Comparison */}
@@ -400,6 +474,39 @@ const ResultsPage: React.FC = () => {
             </p>
           )}
         </div>
+          </>
+        )}
+
+        {/* Overall Report Tab Content */}
+        {activeTab === 'overall' && (
+          <div className="space-y-8">
+            {growthLoading ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                <div className="flex items-center justify-center h-64">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                </div>
+              </div>
+            ) : growthData ? (
+              <>
+                {/* Growth Chart */}
+                <GrowthOverTimeChart data={growthData} />
+                
+                {/* Difficulty Progression Chart */}
+                <DifficultyProgressionChart
+                  data={results.difficultyProgression}
+                  currentRIT={results.statistics.currentRIT}
+                  previousRIT={results.statistics.previousRIT}
+                />
+              </>
+            ) : (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                <div className="text-center">
+                  <p className="text-gray-600">Unable to load growth data.</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

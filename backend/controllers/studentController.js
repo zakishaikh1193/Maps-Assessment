@@ -484,6 +484,13 @@ export const getAssessmentResults = async (req, res) => {
       correctAnswer: response.correct_option_index
     }));
 
+    // Create difficulty progression data for the graph
+    const difficultyProgression = responses.map(response => ({
+      questionNumber: response.question_order,
+      difficulty: response.question_difficulty,
+      isCorrect: response.is_correct
+    }));
+
     res.json({
       assessment: {
         id: assessment.id,
@@ -502,6 +509,7 @@ export const getAssessmentResults = async (req, res) => {
         accuracy: Math.round((correctAnswers / totalQuestions) * 100)
       },
       responses: formattedResponses,
+      difficultyProgression: difficultyProgression,
       previousAssessment: previousAssessment.length > 0 ? {
         ritScore: previousAssessment[0].rit_score,
         dateTaken: previousAssessment[0].date_taken,
@@ -515,6 +523,130 @@ export const getAssessmentResults = async (req, res) => {
     res.status(500).json({
       error: 'Failed to fetch assessment results',
       code: 'FETCH_RESULTS_ERROR'
+    });
+  }
+};
+
+// Get growth over time data for a specific subject
+export const getGrowthOverTime = async (req, res) => {
+  try {
+    const { subjectId } = req.params;
+    const studentId = req.user.id;
+
+    // Get student's RIT scores over time for this subject
+    const studentScores = await executeQuery(`
+      SELECT 
+        assessment_period,
+        year,
+        rit_score,
+        date_taken
+      FROM assessments 
+      WHERE student_id = ? 
+      AND subject_id = ? 
+      AND rit_score IS NOT NULL
+      ORDER BY year ASC, 
+        CASE assessment_period 
+          WHEN 'Fall' THEN 1 
+          WHEN 'Winter' THEN 2 
+          WHEN 'Spring' THEN 3 
+        END ASC
+    `, [studentId, subjectId]);
+
+    // Get class average scores for the same subject and periods
+    const classAverages = await executeQuery(`
+      SELECT 
+        assessment_period,
+        year,
+        AVG(rit_score) as average_rit_score,
+        COUNT(*) as student_count
+      FROM assessments 
+      WHERE subject_id = ? 
+      AND rit_score IS NOT NULL
+      GROUP BY assessment_period, year
+      ORDER BY year ASC, 
+        CASE assessment_period 
+          WHEN 'Fall' THEN 1 
+          WHEN 'Winter' THEN 2 
+          WHEN 'Spring' THEN 3 
+        END ASC
+    `, [subjectId]);
+
+    // Get subject name
+    const subjectData = await executeQuery(
+      'SELECT name FROM subjects WHERE id = ?',
+      [subjectId]
+    );
+
+    const subjectName = subjectData.length > 0 ? subjectData[0].name : 'Unknown Subject';
+
+    // Format the data for the chart
+    const formattedStudentScores = studentScores.map(score => ({
+      period: `${score.assessment_period} ${score.year}`,
+      year: score.year,
+      assessmentPeriod: score.assessment_period,
+      ritScore: score.rit_score,
+      dateTaken: score.date_taken
+    }));
+
+    const formattedClassAverages = classAverages.map(avg => ({
+      period: `${avg.assessment_period} ${avg.year}`,
+      year: avg.year,
+      assessmentPeriod: avg.assessment_period,
+      averageRITScore: Math.round(avg.average_rit_score),
+      studentCount: avg.student_count
+    }));
+
+    // Calculate student distribution by period and RIT score ranges
+    const periodDistributions = await executeQuery(`
+      SELECT 
+        assessment_period,
+        year,
+        COUNT(*) as total_students,
+        SUM(CASE WHEN rit_score BETWEEN 100 AND 150 THEN 1 ELSE 0 END) as red_count,
+        SUM(CASE WHEN rit_score BETWEEN 151 AND 200 THEN 1 ELSE 0 END) as orange_count,
+        SUM(CASE WHEN rit_score BETWEEN 201 AND 250 THEN 1 ELSE 0 END) as yellow_count,
+        SUM(CASE WHEN rit_score BETWEEN 251 AND 300 THEN 1 ELSE 0 END) as green_count,
+        SUM(CASE WHEN rit_score > 300 THEN 1 ELSE 0 END) as blue_count
+      FROM assessments 
+      WHERE subject_id = ? 
+      AND rit_score IS NOT NULL
+      GROUP BY assessment_period, year
+      ORDER BY year ASC, 
+        CASE assessment_period 
+          WHEN 'Fall' THEN 1 
+          WHEN 'Winter' THEN 2 
+          WHEN 'Spring' THEN 3 
+        END ASC
+    `, [subjectId]);
+
+    // Calculate percentages for each period
+    const formattedDistributions = periodDistributions.map(period => ({
+      period: `${period.assessment_period} ${period.year}`,
+      year: period.year,
+      assessmentPeriod: period.assessment_period,
+      totalStudents: period.total_students,
+      distributions: {
+        red: Math.round((period.red_count / period.total_students) * 100),
+        orange: Math.round((period.orange_count / period.total_students) * 100),
+        yellow: Math.round((period.yellow_count / period.total_students) * 100),
+        green: Math.round((period.green_count / period.total_students) * 100),
+        blue: Math.round((period.blue_count / period.total_students) * 100)
+      }
+    }));
+
+    res.json({
+      subjectName,
+      studentScores: formattedStudentScores,
+      classAverages: formattedClassAverages,
+      periodDistributions: formattedDistributions,
+      totalAssessments: studentScores.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching growth over time data:', error);
+    res.status(500).json({
+      error: 'Failed to fetch growth over time data',
+      code: 'FETCH_GROWTH_DATA_ERROR'
     });
   }
 };

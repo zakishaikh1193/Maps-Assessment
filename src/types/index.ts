@@ -70,6 +70,50 @@ export interface AssessmentResult {
   correctAnswer: number;
 }
 
+export interface DifficultyProgression {
+  questionNumber: number;
+  difficulty: number;
+  isCorrect: boolean;
+}
+
+export interface GrowthDataPoint {
+  period: string;
+  year: number;
+  assessmentPeriod: string;
+  ritScore: number;
+  dateTaken: string;
+}
+
+export interface ClassAverageDataPoint {
+  period: string;
+  year: number;
+  assessmentPeriod: string;
+  averageRITScore: number;
+  studentCount: number;
+}
+
+export interface PeriodDistribution {
+  period: string;
+  year: number;
+  assessmentPeriod: string;
+  totalStudents: number;
+  distributions: {
+    red: number;
+    orange: number;
+    yellow: number;
+    green: number;
+    blue: number;
+  };
+}
+
+export interface GrowthOverTimeData {
+  subjectName: string;
+  studentScores: GrowthDataPoint[];
+  classAverages: ClassAverageDataPoint[];
+  periodDistributions: PeriodDistribution[];
+  totalAssessments: number;
+}
+
 export interface DetailedAssessmentResults {
   assessment: {
     id: number;
@@ -88,6 +132,7 @@ export interface DetailedAssessmentResults {
     accuracy: number;
   };
   responses: AssessmentResult[];
+  difficultyProgression: DifficultyProgression[];
   previousAssessment: {
     ritScore: number;
     dateTaken: string;
