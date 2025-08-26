@@ -104,6 +104,16 @@ export const adminAPI = {
   getStats: async (): Promise<AdminStats> => {
     const response = await api.get('/admin/stats');
     return response.data;
+  },
+
+  getStudents: async (): Promise<Array<{id: number, username: string, firstName?: string, lastName?: string}>> => {
+    const response = await api.get('/admin/students');
+    return response.data;
+  },
+
+  getStudentGrowth: async (studentId: number, subjectId: number) => {
+    const response = await api.get(`/admin/students/${studentId}/growth/${subjectId}`);
+    return response.data;
   }
 };
 

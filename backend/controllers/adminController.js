@@ -1,5 +1,144 @@
 import { executeQuery } from '../config/database.js';
 
+// Get all students
+export const getStudents = async (req, res) => {
+  try {
+    const students = await executeQuery(`
+      SELECT id, username, first_name, last_name
+      FROM users 
+      WHERE role = 'student'
+      ORDER BY first_name, last_name, username
+    `);
+    
+    res.json(students);
+  } catch (error) {
+    console.error('Error fetching students:', error);
+    res.status(500).json({
+      error: 'Failed to fetch students',
+      code: 'FETCH_STUDENTS_ERROR'
+    });
+  }
+};
+
+// Get student growth data
+export const getStudentGrowth = async (req, res) => {
+  try {
+    const { studentId, subjectId } = req.params;
+    
+    // Get subject name
+    const subjectResult = await executeQuery('SELECT name FROM subjects WHERE id = ?', [subjectId]);
+    if (subjectResult.length === 0) {
+      return res.status(404).json({
+        error: 'Subject not found',
+        code: 'SUBJECT_NOT_FOUND'
+      });
+    }
+    const subjectName = subjectResult[0].name;
+
+    // Get all assessments for this student and subject (student's RIT progression)
+    const studentScores = await executeQuery(`
+      SELECT 
+        CONCAT(assessment_period, ' ', year) as period,
+        year,
+        assessment_period,
+        rit_score,
+        date_taken
+      FROM assessments 
+      WHERE student_id = ? AND subject_id = ?
+      ORDER BY year ASC, 
+        CASE assessment_period 
+          WHEN 'Fall' THEN 1 
+          WHEN 'Winter' THEN 2 
+          WHEN 'Spring' THEN 3 
+        END ASC
+    `, [studentId, subjectId]);
+
+    // Get class averages for each period
+    const classAverages = await executeQuery(`
+      SELECT 
+        CONCAT(assessment_period, ' ', year) as period,
+        year,
+        assessment_period,
+        AVG(rit_score) as averageRITScore,
+        COUNT(*) as studentCount
+      FROM assessments 
+      WHERE subject_id = ? AND rit_score IS NOT NULL
+      GROUP BY assessment_period, year
+      ORDER BY year ASC, 
+        CASE assessment_period 
+          WHEN 'Fall' THEN 1 
+          WHEN 'Winter' THEN 2 
+          WHEN 'Spring' THEN 3 
+        END ASC
+    `, [subjectId]);
+
+    // Calculate student distribution by period and RIT score ranges
+    const periodDistributions = await executeQuery(`
+      SELECT 
+        assessment_period,
+        year,
+        COUNT(*) as total_students,
+        SUM(CASE WHEN rit_score BETWEEN 100 AND 150 THEN 1 ELSE 0 END) as red_count,
+        SUM(CASE WHEN rit_score BETWEEN 151 AND 200 THEN 1 ELSE 0 END) as orange_count,
+        SUM(CASE WHEN rit_score BETWEEN 201 AND 250 THEN 1 ELSE 0 END) as yellow_count,
+        SUM(CASE WHEN rit_score BETWEEN 251 AND 300 THEN 1 ELSE 0 END) as green_count,
+        SUM(CASE WHEN rit_score > 300 THEN 1 ELSE 0 END) as blue_count
+      FROM assessments 
+      WHERE subject_id = ? 
+      AND rit_score IS NOT NULL
+      GROUP BY assessment_period, year
+      ORDER BY year ASC, 
+        CASE assessment_period 
+          WHEN 'Fall' THEN 1 
+          WHEN 'Winter' THEN 2 
+          WHEN 'Spring' THEN 3 
+        END ASC
+    `, [subjectId]);
+
+    // Calculate percentages for each period
+    const formattedDistributions = periodDistributions.map(period => ({
+      period: `${period.assessment_period} ${period.year}`,
+      year: period.year,
+      assessmentPeriod: period.assessment_period,
+      totalStudents: period.total_students,
+      distributions: {
+        red: Math.round((period.red_count / period.total_students) * 100),
+        orange: Math.round((period.orange_count / period.total_students) * 100),
+        yellow: Math.round((period.yellow_count / period.total_students) * 100),
+        green: Math.round((period.green_count / period.total_students) * 100),
+        blue: Math.round((period.blue_count / period.total_students) * 100)
+      }
+    }));
+
+    res.json({
+      subjectName,
+      studentScores: studentScores.map(score => ({
+        period: score.period,
+        year: score.year,
+        assessmentPeriod: score.assessment_period,
+        ritScore: score.rit_score,
+        dateTaken: score.date_taken
+      })),
+      classAverages: classAverages.map(avg => ({
+        period: avg.period,
+        year: avg.year,
+        assessmentPeriod: avg.assessment_period,
+        averageRITScore: Math.round(avg.averageRITScore),
+        studentCount: avg.studentCount
+      })),
+      periodDistributions: formattedDistributions,
+      totalAssessments: studentScores.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching student growth:', error);
+    res.status(500).json({
+      error: 'Failed to fetch student growth data',
+      code: 'FETCH_GROWTH_ERROR'
+    });
+  }
+};
+
 // Get admin statistics
 export const getAdminStats = async (req, res) => {
   try {
@@ -12,7 +151,7 @@ export const getAdminStats = async (req, res) => {
     const totalStudents = totalStudentsResult[0].count;
 
     // Get total assessments
-    const totalAssessmentsResult = await executeQuery('SELECT COUNT(*) as count FROM assessments WHERE final_score IS NOT NULL');
+    const totalAssessmentsResult = await executeQuery('SELECT COUNT(*) as count FROM assessments WHERE rit_score IS NOT NULL');
     const totalAssessments = totalAssessmentsResult[0].count;
 
     // Get difficulty distribution

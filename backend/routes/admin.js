@@ -1,6 +1,8 @@
 import express from 'express';
 import { 
   getAdminStats,
+  getStudents,
+  getStudentGrowth,
   createQuestion,
   createBulkQuestions,
   getQuestionsBySubject,
@@ -20,6 +22,10 @@ router.use(adminOnly);
 
 // Stats
 router.get('/stats', getAdminStats);
+
+// Students
+router.get('/students', getStudents);
+router.get('/students/:studentId/growth/:subjectId', getStudentGrowth);
 
 // Debug endpoint
 router.get('/debug/questions', debugQuestions);

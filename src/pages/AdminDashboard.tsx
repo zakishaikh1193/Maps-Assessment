@@ -4,8 +4,9 @@ import { subjectsAPI, adminAPI } from '../services/api';
 import QuestionForm from '../components/QuestionForm';
 import QuestionList from '../components/QuestionList';
 import AdminStatsCard from '../components/AdminStatsCard';
+import GrowthOverTimeChart from '../components/GrowthOverTimeChart';
 import Navigation from '../components/Navigation';
-import { Plus, BookOpen, Users, FileQuestion, BarChart3 } from 'lucide-react';
+import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -15,6 +16,13 @@ const AdminDashboard: React.FC = () => {
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Growth chart states
+  const [activeTab, setActiveTab] = useState<'questions' | 'growth'>('questions');
+  const [students, setStudents] = useState<Array<{id: number, username: string, firstName?: string, lastName?: string}>>([]);
+  const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
+  const [growthData, setGrowthData] = useState<any>(null);
+  const [growthLoading, setGrowthLoading] = useState(false);
 
   useEffect(() => {
     loadInitialData();
@@ -26,14 +34,33 @@ const AdminDashboard: React.FC = () => {
     }
   }, [selectedSubject]);
 
+  // Load growth data when student and subject are selected
+  useEffect(() => {
+    if (activeTab === 'growth' && selectedStudent && selectedSubject) {
+      setGrowthLoading(true);
+      setGrowthData(null); // Reset data when selections change
+      adminAPI.getStudentGrowth(selectedStudent, selectedSubject.id)
+        .then(data => {
+          setGrowthData(data);
+          setGrowthLoading(false);
+        })
+        .catch(error => {
+          console.error('Error fetching growth data:', error);
+          setGrowthLoading(false);
+        });
+    }
+  }, [activeTab, selectedStudent, selectedSubject]);
+
   const loadInitialData = async () => {
     try {
-      const [subjectsData, statsData] = await Promise.all([
+      const [subjectsData, statsData, studentsData] = await Promise.all([
         subjectsAPI.getAll(),
-        adminAPI.getStats()
+        adminAPI.getStats(),
+        adminAPI.getStudents()
       ]);
       setSubjects(subjectsData);
       setStats(statsData);
+      setStudents(studentsData);
       if (subjectsData.length > 0) {
         setSelectedSubject(subjectsData[0]);
       }
@@ -156,85 +183,218 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Subjects Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                <BookOpen className="h-5 w-5 text-blue-600" />
-                <span>Subjects</span>
-              </h2>
-              <div className="space-y-2">
-                {subjects.map((subject) => (
-                  <button
-                    key={subject.id}
-                    onClick={() => setSelectedSubject(subject)}
-                    className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${
-                      selectedSubject?.id === subject.id
-                        ? 'bg-blue-100 text-blue-900 border-2 border-blue-200'
-                        : 'text-gray-700 hover:bg-gray-50 border-2 border-transparent'
-                    }`}
-                  >
-                    <div className="font-medium">{subject.name}</div>
-                    <div className="text-sm text-gray-500">
-                      {questions.filter(q => selectedSubject?.id === subject.id).length} questions
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1 mb-8">
+          <div className="flex">
+            <button
+              onClick={() => setActiveTab('questions')}
+              className={`flex-1 px-6 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'questions'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <FileQuestion className="h-4 w-4" />
+                <span>QUESTION MANAGEMENT</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('growth')}
+              className={`flex-1 px-6 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'growth'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <TrendingUp className="h-4 w-4" />
+                <span>STUDENT GROWTH</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Questions Management Tab Content */}
+        {activeTab === 'questions' && (
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            {/* Subjects Sidebar */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                  <BookOpen className="h-5 w-5 text-blue-600" />
+                  <span>Subjects</span>
+                </h2>
+                <div className="space-y-2">
+                  {subjects.map((subject) => (
+                    <button
+                      key={subject.id}
+                      onClick={() => setSelectedSubject(subject)}
+                      className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${
+                        selectedSubject?.id === subject.id
+                          ? 'bg-blue-100 text-blue-900 border-2 border-blue-200'
+                          : 'text-gray-700 hover:bg-gray-50 border-2 border-transparent'
+                      }`}
+                    >
+                      <div className="font-medium">{subject.name}</div>
+                      <div className="text-sm text-gray-500">
+                        {questions.filter(q => selectedSubject?.id === subject.id).length} questions
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {stats && <AdminStatsCard stats={stats} />}
+            </div>
+
+            {/* Main Content */}
+            <div className="lg:col-span-3">
+              {selectedSubject && (
+                <>
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
+                    <div className="p-6 border-b border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-xl font-semibold text-gray-900">
+                            {selectedSubject.name} Questions
+                          </h2>
+                          <p className="text-gray-600 mt-1">
+                            Manage questions for {selectedSubject.name} assessments
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setShowQuestionForm(true)}
+                          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                        >
+                          <Plus className="h-5 w-5" />
+                          <span>Add Question</span>
+                        </button>
+                      </div>
                     </div>
-                  </button>
-                ))}
+
+                    {showQuestionForm && (
+                      <div className="p-6 border-b border-gray-100 bg-gray-50">
+                        <QuestionForm
+                          subjects={subjects}
+                          selectedSubject={selectedSubject}
+                          editingQuestion={editingQuestion}
+                          onQuestionCreated={handleQuestionCreated}
+                          onQuestionUpdated={handleQuestionUpdated}
+                          onCancel={handleCancelEdit}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <QuestionList
+                    questions={questions}
+                    onEdit={handleEditQuestion}
+                    onDelete={handleQuestionDeleted}
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Student Growth Tab Content */}
+        {activeTab === 'growth' && (
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            {/* Selection Sidebar */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                  <BookOpen className="h-5 w-5 text-blue-600" />
+                  <span>Subject</span>
+                </h2>
+                <div className="space-y-2">
+                  {subjects.map((subject) => (
+                    <button
+                      key={subject.id}
+                      onClick={() => setSelectedSubject(subject)}
+                      className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${
+                        selectedSubject?.id === subject.id
+                          ? 'bg-blue-100 text-blue-900 border-2 border-blue-200'
+                          : 'text-gray-700 hover:bg-gray-50 border-2 border-transparent'
+                      }`}
+                    >
+                      <div className="font-medium">{subject.name}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                  <User className="h-5 w-5 text-emerald-600" />
+                  <span>Student</span>
+                </h2>
+                <div className="space-y-2">
+                  {students.map((student) => (
+                    <button
+                      key={student.id}
+                      onClick={() => setSelectedStudent(student.id)}
+                      className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${
+                        selectedStudent === student.id
+                          ? 'bg-emerald-100 text-emerald-900 border-2 border-emerald-200'
+                          : 'text-gray-700 hover:bg-gray-50 border-2 border-transparent'
+                      }`}
+                    >
+                      <div className="font-medium">
+                        {student.firstName && student.lastName 
+                          ? `${student.firstName} ${student.lastName}`
+                          : student.username
+                        }
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {student.username}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {stats && <AdminStatsCard stats={stats} />}
-          </div>
-
-          {/* Main Content */}
-          <div className="lg:col-span-3">
-            {selectedSubject && (
-              <>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
-                  <div className="p-6 border-b border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h2 className="text-xl font-semibold text-gray-900">
-                          {selectedSubject.name} Questions
-                        </h2>
-                        <p className="text-gray-600 mt-1">
-                          Manage questions for {selectedSubject.name} assessments
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setShowQuestionForm(true)}
-                        className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                      >
-                        <Plus className="h-5 w-5" />
-                        <span>Add Question</span>
-                      </button>
-                    </div>
+            {/* Growth Chart Content */}
+            <div className="lg:col-span-3">
+              {selectedSubject && selectedStudent ? (
+                <div className="space-y-6">
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                      Student Growth Analysis
+                    </h2>
+                    <p className="text-gray-600">
+                      {students.find(s => s.id === selectedStudent)?.firstName || 'Student'} - {selectedSubject.name}
+                    </p>
                   </div>
 
-                  {showQuestionForm && (
-                    <div className="p-6 border-b border-gray-100 bg-gray-50">
-                      <QuestionForm
-                        subjects={subjects}
-                        selectedSubject={selectedSubject}
-                        editingQuestion={editingQuestion}
-                        onQuestionCreated={handleQuestionCreated}
-                        onQuestionUpdated={handleQuestionUpdated}
-                        onCancel={handleCancelEdit}
-                      />
+                  {growthLoading ? (
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                      <div className="flex items-center justify-center h-64">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                      </div>
+                    </div>
+                  ) : growthData ? (
+                    <GrowthOverTimeChart data={growthData} />
+                  ) : (
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                      <div className="text-center">
+                        <p className="text-gray-600">Select a subject and student to view growth data.</p>
+                      </div>
                     </div>
                   )}
                 </div>
-
-                <QuestionList
-                  questions={questions}
-                  onEdit={handleEditQuestion}
-                  onDelete={handleQuestionDeleted}
-                />
-              </>
-            )}
+              ) : (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                  <div className="text-center">
+                    <p className="text-gray-600">Please select both a subject and a student to view growth analysis.</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
