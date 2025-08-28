@@ -66,26 +66,26 @@ const ResultsPage: React.FC = () => {
   }, [activeTab, results, growthData, growthLoading]);
 
   const getScoreColor = (score: number) => {
-    if (score >= 300) return 'text-purple-600';
-    if (score >= 250) return 'text-blue-600';
-    if (score >= 200) return 'text-emerald-600';
-    if (score >= 150) return 'text-orange-600';
+    if (score >= 350) return 'text-purple-600';
+    if (score >= 300) return 'text-blue-600';
+    if (score >= 250) return 'text-emerald-600';
+    if (score >= 200) return 'text-orange-600';
     return 'text-red-600';
   };
 
   const getScoreLevel = (score: number) => {
-    if (score >= 300) return 'Advanced+';
-    if (score >= 250) return 'Advanced';
-    if (score >= 200) return 'Proficient';
-    if (score >= 150) return 'Developing';
+    if (score >= 350) return 'Advanced+';
+    if (score >= 300) return 'Advanced';
+    if (score >= 250) return 'Proficient';
+    if (score >= 200) return 'Developing';
     return 'Beginning';
   };
 
   const getScoreIcon = (score: number) => {
-    if (score >= 300) return '🏆';
-    if (score >= 250) return '🌟';
-    if (score >= 200) return '🎯';
-    if (score >= 150) return '📈';
+    if (score >= 350) return '🏆';
+    if (score >= 300) return '🌟';
+    if (score >= 250) return '🎯';
+    if (score >= 200) return '📈';
     return '🌱';
   };
 
@@ -232,10 +232,10 @@ const ResultsPage: React.FC = () => {
               </div>
               <div className="text-xl text-gray-600">Current RIT Score</div>
               <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-2 ${
-                results.statistics.currentRIT >= 300 ? 'bg-purple-100 text-purple-800' :
-                results.statistics.currentRIT >= 250 ? 'bg-blue-100 text-blue-800' :
-                results.statistics.currentRIT >= 200 ? 'bg-emerald-100 text-emerald-800' :
-                results.statistics.currentRIT >= 150 ? 'bg-orange-100 text-orange-800' :
+                results.statistics.currentRIT >= 350 ? 'bg-purple-100 text-purple-800' :
+                results.statistics.currentRIT >= 300 ? 'bg-blue-100 text-blue-800' :
+                results.statistics.currentRIT >= 250 ? 'bg-emerald-100 text-emerald-800' :
+                results.statistics.currentRIT >= 200 ? 'bg-orange-100 text-orange-800' :
                 'bg-red-100 text-red-800'
               }`}>
                 {getScoreLevel(results.statistics.currentRIT)} Level

@@ -3,10 +3,12 @@ import { Subject, Question, AdminStats } from '../types';
 import { subjectsAPI, adminAPI } from '../services/api';
 import QuestionForm from '../components/QuestionForm';
 import QuestionList from '../components/QuestionList';
+import SubjectForm from '../components/SubjectForm';
+import SubjectList from '../components/SubjectList';
 import AdminStatsCard from '../components/AdminStatsCard';
 import GrowthOverTimeChart from '../components/GrowthOverTimeChart';
 import Navigation from '../components/Navigation';
-import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User } from 'lucide-react';
+import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User, Settings } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -18,11 +20,16 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   
   // Growth chart states
-  const [activeTab, setActiveTab] = useState<'questions' | 'growth'>('questions');
+  const [activeTab, setActiveTab] = useState<'questions' | 'growth' | 'subjects'>('questions');
   const [students, setStudents] = useState<Array<{id: number, username: string, firstName?: string, lastName?: string}>>([]);
   const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
   const [growthData, setGrowthData] = useState<any>(null);
   const [growthLoading, setGrowthLoading] = useState(false);
+
+  // Subjects management states
+  const [showSubjectForm, setShowSubjectForm] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+  const [subjectsLoading, setSubjectsLoading] = useState(false);
 
   useEffect(() => {
     loadInitialData();
@@ -101,6 +108,52 @@ const AdminDashboard: React.FC = () => {
       loadQuestions(selectedSubject.id);
     }
     loadInitialData(); // Refresh stats
+  };
+
+  // Subjects management functions
+  const handleSubjectCreated = (newSubject: Subject) => {
+    setSubjects(prev => [...prev, newSubject]);
+    setShowSubjectForm(false);
+    setEditingSubject(null);
+    loadInitialData(); // Refresh stats
+  };
+
+  const handleSubjectUpdated = (updatedSubject: Subject) => {
+    setSubjects(prev => prev.map(s => s.id === updatedSubject.id ? updatedSubject : s));
+    setShowSubjectForm(false);
+    setEditingSubject(null);
+    loadInitialData(); // Refresh stats
+  };
+
+  const handleSubjectDeleted = async (subjectId: number) => {
+    try {
+      await subjectsAPI.delete(subjectId);
+      setSubjects(prev => prev.filter(s => s.id !== subjectId));
+      
+      // If the deleted subject was selected, select the first available subject
+      if (selectedSubject?.id === subjectId) {
+        const remainingSubjects = subjects.filter(s => s.id !== subjectId);
+        if (remainingSubjects.length > 0) {
+          setSelectedSubject(remainingSubjects[0]);
+        } else {
+          setSelectedSubject(null);
+        }
+      }
+      
+      loadInitialData(); // Refresh stats
+    } catch (error) {
+      console.error('Failed to delete subject:', error);
+    }
+  };
+
+  const handleEditSubject = (subject: Subject) => {
+    setEditingSubject(subject);
+    setShowSubjectForm(true);
+  };
+
+  const handleAddSubject = () => {
+    setEditingSubject(null);
+    setShowSubjectForm(true);
   };
 
   const handleEditQuestion = async (question: Question) => {
@@ -210,6 +263,19 @@ const AdminDashboard: React.FC = () => {
               <div className="flex items-center justify-center space-x-2">
                 <TrendingUp className="h-4 w-4" />
                 <span>STUDENT GROWTH</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('subjects')}
+              className={`flex-1 px-6 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'subjects'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <Settings className="h-4 w-4" />
+                <span>SUBJECTS</span>
               </div>
             </button>
           </div>
@@ -392,6 +458,48 @@ const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Subjects Management Tab Content */}
+        {activeTab === 'subjects' && (
+          <div className="space-y-6">
+            <SubjectList
+              subjects={subjects}
+              onEdit={handleEditSubject}
+              onDelete={handleSubjectDeleted}
+              onAddNew={handleAddSubject}
+              loading={subjectsLoading}
+            />
+          </div>
+        )}
+
+        {/* Subject Form Modal */}
+        {showSubjectForm && (
+          <SubjectForm
+            subject={editingSubject}
+            onClose={() => {
+              setShowSubjectForm(false);
+              setEditingSubject(null);
+            }}
+            onSubjectCreated={handleSubjectCreated}
+            onSubjectUpdated={handleSubjectUpdated}
+          />
+        )}
+
+        {/* Question Form Modal */}
+        {showQuestionForm && selectedSubject && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+              <QuestionForm
+                subjects={subjects}
+                selectedSubject={selectedSubject}
+                editingQuestion={editingQuestion}
+                onQuestionCreated={handleQuestionCreated}
+                onQuestionUpdated={handleQuestionUpdated}
+                onCancel={handleCancelEdit}
+              />
             </div>
           </div>
         )}

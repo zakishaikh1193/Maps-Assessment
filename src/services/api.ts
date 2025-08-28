@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { User, Subject, Question, Assessment, AssessmentResponse, DashboardData, AdminStats } from '../types';
 
-const API_BASE_URL = 'https://map-test.bylinelms.com/api';
+// const API_BASE_URL = 'https://map-test.bylinelms.com/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -60,6 +61,21 @@ export const subjectsAPI = {
 
   getById: async (id: number): Promise<Subject> => {
     const response = await api.get(`/subjects/${id}`);
+    return response.data;
+  },
+
+  create: async (subjectData: { name: string; description?: string }) => {
+    const response = await api.post('/subjects', subjectData);
+    return response.data;
+  },
+
+  update: async (id: number, subjectData: { name: string; description?: string }) => {
+    const response = await api.put(`/subjects/${id}`, subjectData);
+    return response.data;
+  },
+
+  delete: async (id: number) => {
+    const response = await api.delete(`/subjects/${id}`);
     return response.data;
   }
 };
