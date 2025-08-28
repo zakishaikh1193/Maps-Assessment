@@ -178,6 +178,19 @@ export interface DashboardData {
   assessments: Assessment[];
 }
 
+export interface AssessmentConfiguration {
+  id: number;
+  gradeId: number;
+  subjectId: number;
+  timeLimitMinutes: number;
+  questionCount: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  gradeName?: string;
+  subjectName?: string;
+}
+
 export interface AdminStats {
   totalQuestions: number;
   totalStudents: number;

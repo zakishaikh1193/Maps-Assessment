@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { User, Subject, Question, Assessment, AssessmentResponse, DashboardData, AdminStats, School, Grade } from '../types';
+import { User, Subject, Question, Assessment, AssessmentResponse, DashboardData, AdminStats, School, Grade, AssessmentConfiguration } from '../types';
 
 // const API_BASE_URL = 'https://map-test.bylinelms.com/api';
 const API_BASE_URL = 'http://localhost:5000/api';
@@ -201,6 +201,38 @@ export const gradesAPI = {
 
   getStats: async (id: number) => {
     const response = await api.get(`/grades/${id}/stats`);
+    return response.data;
+  }
+};
+
+export const assessmentConfigAPI = {
+  getAll: async (): Promise<AssessmentConfiguration[]> => {
+    const response = await api.get('/admin/assessment-configs');
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<AssessmentConfiguration> => {
+    const response = await api.get(`/admin/assessment-configs/${id}`);
+    return response.data;
+  },
+
+  getByGradeSubject: async (gradeId: number, subjectId: number): Promise<AssessmentConfiguration> => {
+    const response = await api.get(`/admin/assessment-configs/grade/${gradeId}/subject/${subjectId}`);
+    return response.data;
+  },
+
+  create: async (configData: { gradeId: number; subjectId: number; timeLimitMinutes: number; questionCount: number; isActive?: boolean }) => {
+    const response = await api.post('/admin/assessment-configs', configData);
+    return response.data;
+  },
+
+  update: async (id: number, configData: { gradeId: number; subjectId: number; timeLimitMinutes: number; questionCount: number; isActive?: boolean }) => {
+    const response = await api.put(`/admin/assessment-configs/${id}`, configData);
+    return response.data;
+  },
+
+  delete: async (id: number) => {
+    const response = await api.delete(`/admin/assessment-configs/${id}`);
     return response.data;
   }
 };

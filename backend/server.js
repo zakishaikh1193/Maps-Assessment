@@ -21,6 +21,7 @@ import adminRoutes from './routes/admin.js';
 import studentRoutes from './routes/student.js';
 import schoolsRoutes from './routes/schools.js';
 import gradesRoutes from './routes/grades.js';
+import assessmentConfigRoutes from './routes/assessmentConfig.js';
 import rateLimit from 'express-rate-limit';
 
 // Load environment variables
@@ -58,6 +59,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/schools', schoolsRoutes);
 app.use('/api/grades', gradesRoutes);
+app.use('/api/admin/assessment-configs', assessmentConfigRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

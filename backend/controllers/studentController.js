@@ -186,6 +186,24 @@ export const startAssessment = async (req, res) => {
 
     const studentGradeId = studentInfo[0].grade_id;
 
+    // Get assessment configuration for this grade-subject combination
+    const configResult = await executeQuery(`
+      SELECT time_limit_minutes, question_count 
+      FROM assessment_configurations 
+      WHERE grade_id = ? AND subject_id = ? AND is_active = 1
+    `, [studentGradeId, subjectId]);
+
+    if (configResult.length === 0) {
+      return res.status(404).json({
+        error: 'Assessment configuration not found for this grade-subject combination',
+        code: 'CONFIGURATION_NOT_FOUND'
+      });
+    }
+
+    const config = configResult[0];
+    const timeLimitMinutes = config.time_limit_minutes;
+    const questionCount = config.question_count;
+
     // Check for previous RIT score to determine starting difficulty (within current year)
     const previousAssessments = await executeQuery(
       'SELECT rit_score FROM assessments WHERE student_id = ? AND subject_id = ? AND year = ? AND rit_score IS NOT NULL ORDER BY date_taken DESC LIMIT 1',
@@ -212,10 +230,10 @@ export const startAssessment = async (req, res) => {
       });
     }
     
-    // Create assessment record with current year
+    // Create assessment record with current year and configuration
     const result = await executeQuery(
-      'INSERT INTO assessments (student_id, subject_id, assessment_period, year) VALUES (?, ?, ?, ?)',
-      [studentId, subjectId, period, currentYear]
+      'INSERT INTO assessments (student_id, subject_id, assessment_period, year, total_questions, time_limit_minutes) VALUES (?, ?, ?, ?, ?, ?)',
+      [studentId, subjectId, period, currentYear, questionCount, timeLimitMinutes]
     );
 
     // Initialize session with MAP adaptive tracking
@@ -227,6 +245,8 @@ export const startAssessment = async (req, res) => {
       period,
       currentDifficulty: firstQuestion.difficulty_level,
       questionCount: 0,
+      maxQuestions: questionCount, // Use dynamic question count
+      timeLimitMinutes: timeLimitMinutes, // Store time limit
       currentRIT: 0, // Current RIT based on last answered question
       highestCorrectDifficulty: 0, // Track final RIT score
       usedQuestions: new Set(), // Track used questions
@@ -337,8 +357,37 @@ export const submitAnswer = async (req, res) => {
       session.highestCorrectDifficulty = question.difficulty_level;
     }
 
-    // Check if assessment is complete (10 questions)
-    if (session.questionCount >= 10) {
+    // Check time limit
+    const elapsedMinutes = Math.round((Date.now() - session.startTime) / 60000);
+    if (elapsedMinutes >= session.timeLimitMinutes) {
+      const ritScore = session.highestCorrectDifficulty;
+      const duration = elapsedMinutes;
+
+      // Calculate correct answers count
+      const correctAnswersResult = await executeQuery(
+        'SELECT COUNT(*) as correct_count FROM assessment_responses WHERE assessment_id = ? AND is_correct = 1',
+        [assessmentId]
+      );
+      const correctAnswers = correctAnswersResult[0].correct_count;
+
+      // Update assessment with RIT score
+      await executeQuery(
+        'UPDATE assessments SET rit_score = ?, correct_answers = ?, duration_minutes = ? WHERE id = ?',
+        [ritScore, correctAnswers, duration, assessmentId]
+      );
+
+      // Clean up session
+      activeSessions.delete(sessionId);
+
+      return res.json({
+        completed: true,
+        assessmentId: assessmentId,
+        message: `Assessment completed! Time limit reached. Your RIT score is ${ritScore}`
+      });
+    }
+
+    // Check if assessment is complete (dynamic question count)
+    if (session.questionCount >= session.maxQuestions) {
       const ritScore = session.highestCorrectDifficulty;
       const duration = Math.round((Date.now() - session.startTime) / 60000); // minutes
 
@@ -394,7 +443,7 @@ export const submitAnswer = async (req, res) => {
           return nextQuestion.options;
         })(),
         questionNumber: session.questionCount + 1,
-        totalQuestions: 10
+        totalQuestions: session.maxQuestions
       }
     });
   } catch (error) {

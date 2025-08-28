@@ -13,7 +13,8 @@ import StudentList from '../components/StudentList';
 import AdminStatsCard from '../components/AdminStatsCard';
 import GrowthOverTimeChart from '../components/GrowthOverTimeChart';
 import Navigation from '../components/Navigation';
-import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User, Settings, Building, GraduationCap } from 'lucide-react';
+import AssessmentConfigList from '../components/AssessmentConfigList';
+import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User, Settings, Building, GraduationCap, Clock } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -25,7 +26,7 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   
   // Growth chart states
-  const [activeTab, setActiveTab] = useState<'students' | 'questions' | 'growth' | 'subjects' | 'schools' | 'grades'>('students');
+  const [activeTab, setActiveTab] = useState<'students' | 'questions' | 'growth' | 'subjects' | 'schools' | 'grades' | 'configs'>('students');
   const [students, setStudents] = useState<Array<{id: number, username: string, firstName?: string, lastName?: string}>>([]);
   const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
   const [growthData, setGrowthData] = useState<any>(null);
@@ -332,6 +333,19 @@ const AdminDashboard: React.FC = () => {
                 <span className="hidden sm:inline">GRADES</span>
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab('configs')}
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'configs'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <Clock className="h-4 w-4" />
+                <span className="hidden sm:inline">CONFIGS</span>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -547,6 +561,13 @@ const AdminDashboard: React.FC = () => {
         {activeTab === 'grades' && (
           <div className="space-y-6">
             <GradeList />
+          </div>
+        )}
+
+        {/* Assessment Configurations Tab Content */}
+        {activeTab === 'configs' && (
+          <div className="space-y-6">
+            <AssessmentConfigList />
           </div>
         )}
 

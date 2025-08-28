@@ -17,6 +17,11 @@ const AssessmentPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ isCorrect?: boolean; show: boolean }>({ show: false });
   const [startTime, setStartTime] = useState<number>(Date.now());
+  const [timeLimit, setTimeLimit] = useState<number>(30); // Default 30 minutes
+  const [totalQuestions, setTotalQuestions] = useState<number>(10); // Default 10 questions
+  const [currentQuestionNumber, setCurrentQuestionNumber] = useState<number>(1);
+  const [timeRemaining, setTimeRemaining] = useState<number>(timeLimit * 60); // Convert to seconds
+  const [showTimeWarning, setShowTimeWarning] = useState<boolean>(false);
   const hasStartedRef = useRef(false);
 
   useEffect(() => {
@@ -30,12 +35,50 @@ const AssessmentPage: React.FC = () => {
     initAssessment();
   }, []);
 
+  // Countdown timer effect
+  useEffect(() => {
+    if (!loading && timeRemaining > 0) {
+      const timer = setInterval(() => {
+        setTimeRemaining(prev => {
+          const newTime = prev - 1;
+          
+          // Show warning when 5 minutes remaining
+          if (newTime === 300) { // 5 minutes = 300 seconds
+            setShowTimeWarning(true);
+          }
+          
+          // Auto-submit when time runs out
+          if (newTime <= 0) {
+            clearInterval(timer);
+            // Auto-submit current answer if one is selected
+            if (selectedAnswer !== null && currentQuestion && assessmentId) {
+              submitAnswer();
+            }
+            return 0;
+          }
+          
+          return newTime;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [loading, timeRemaining, selectedAnswer, currentQuestion, assessmentId]);
+
   const startAssessment = async () => {
     try {
       const response = await studentAPI.startAssessment(subjectId, period as 'Fall' | 'Winter' | 'Spring');
       setAssessmentId(response.assessmentId);
       setCurrentQuestion(response.question);
       setStartTime(Date.now());
+      
+      // Extract time limit and question count from the first question
+      if (response.question) {
+        setTotalQuestions(response.question.totalQuestions);
+        setCurrentQuestionNumber(response.question.questionNumber);
+        // Time limit will be set from backend configuration
+        // For now, we'll use a default or extract from response if available
+      }
     } catch (error: any) {
       console.error('Failed to start assessment:', error);
       alert(error.response?.data?.error || 'Failed to start assessment');
@@ -46,7 +89,7 @@ const AssessmentPage: React.FC = () => {
   };
 
   const submitAnswer = async () => {
-    if (selectedAnswer === null || !currentQuestion || !assessmentId) return;
+    if (selectedAnswer === null || !currentQuestion || assessmentId === null) return;
 
     setSubmitting(true);
     try {
@@ -61,7 +104,7 @@ const AssessmentPage: React.FC = () => {
 
       // Wait for feedback display, then continue
       setTimeout(async () => {
-        if (response.completed) {
+        if (response.completed && response.assessmentId) {
           try {
             // Fetch detailed results
             const detailedResults = await studentAPI.getDetailedResults(response.assessmentId);
@@ -77,6 +120,7 @@ const AssessmentPage: React.FC = () => {
           }
         } else if (response.question) {
           setCurrentQuestion(response.question);
+          setCurrentQuestionNumber(response.question.questionNumber);
           setSelectedAnswer(null);
           setFeedback({ show: false });
         }
@@ -89,10 +133,9 @@ const AssessmentPage: React.FC = () => {
     }
   };
 
-  const getElapsedTime = () => {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    const minutes = Math.floor(elapsed / 60);
-    const seconds = elapsed % 60;
+  const getTimeDisplay = () => {
+    const minutes = Math.floor(timeRemaining / 60);
+    const seconds = timeRemaining % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
@@ -147,7 +190,7 @@ const AssessmentPage: React.FC = () => {
             <div className="flex items-center space-x-6">
               <div className="flex items-center space-x-2 text-gray-600">
                 <Clock className="h-5 w-5" />
-                <span className="font-mono">{getElapsedTime()}</span>
+                <span className="font-mono">{getTimeDisplay()}</span>
               </div>
               <div className="w-32 bg-gray-200 rounded-full h-2">
                 <div
@@ -158,6 +201,23 @@ const AssessmentPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Time Warning Alert */}
+        {showTimeWarning && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+            <div className="flex items-center space-x-3">
+              <div className="text-yellow-600">
+                <Clock className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-yellow-800">Time Warning</h3>
+                <p className="text-sm text-yellow-700 mt-1">
+                  You have less than 5 minutes remaining. Please complete your assessment soon.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Question */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
