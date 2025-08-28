@@ -15,8 +15,8 @@ const getNextQuestionDifficulty = (currentDifficulty, isCorrect) => {
   }
 };
 
-// Find closest available question to target difficulty
-const findClosestQuestion = async (targetDifficulty, subjectId, assessmentId, usedQuestions = null) => {
+// Find closest available question based on previous answer
+const findClosestQuestion = async (currentDifficulty, isCorrect, subjectId, assessmentId, usedQuestions = null) => {
   let questions;
   
   if (assessmentId && usedQuestions) {
@@ -24,27 +24,37 @@ const findClosestQuestion = async (targetDifficulty, subjectId, assessmentId, us
     const usedQuestionsArray = Array.from(usedQuestions);
     const placeholders = usedQuestionsArray.map(() => '?').join(',');
     
-    questions = await executeQuery(`
-      SELECT id, question_text, options, difficulty_level 
-      FROM questions 
-      WHERE subject_id = ? 
-      AND difficulty_level BETWEEN ? AND ?
-      AND id NOT IN (
-        SELECT question_id FROM assessment_responses WHERE assessment_id = ?
-      )
-      AND id NOT IN (${placeholders || 'NULL'})
-      ORDER BY ABS(difficulty_level - ?) ASC, RAND()
-      LIMIT 1
-    `, [
-      subjectId,
-      targetDifficulty - 10,
-      targetDifficulty + 10,
-      assessmentId,
-      ...usedQuestionsArray,
-      targetDifficulty
-    ]);
+    if (isCorrect) {
+      // If correct: find closest HARDER question
+      questions = await executeQuery(`
+        SELECT id, question_text, options, difficulty_level 
+        FROM questions 
+        WHERE subject_id = ? 
+        AND difficulty_level > ?
+        AND id NOT IN (
+          SELECT question_id FROM assessment_responses WHERE assessment_id = ?
+        )
+        AND id NOT IN (${placeholders || 'NULL'})
+        ORDER BY difficulty_level ASC
+        LIMIT 1
+      `, [subjectId, currentDifficulty, assessmentId, ...usedQuestionsArray]);
+    } else {
+      // If incorrect: find closest EASIER question
+      questions = await executeQuery(`
+        SELECT id, question_text, options, difficulty_level 
+        FROM questions 
+        WHERE subject_id = ? 
+        AND difficulty_level < ?
+        AND id NOT IN (
+          SELECT question_id FROM assessment_responses WHERE assessment_id = ?
+        )
+        AND id NOT IN (${placeholders || 'NULL'})
+        ORDER BY difficulty_level DESC
+        LIMIT 1
+      `, [subjectId, currentDifficulty, assessmentId, ...usedQuestionsArray]);
+    }
 
-    // If no questions in range, expand search
+    // If no questions found in the preferred direction, fall back to any available question
     if (questions.length === 0) {
       questions = await executeQuery(`
         SELECT id, question_text, options, difficulty_level 
@@ -56,29 +66,39 @@ const findClosestQuestion = async (targetDifficulty, subjectId, assessmentId, us
         AND id NOT IN (${placeholders || 'NULL'})
         ORDER BY ABS(difficulty_level - ?) ASC, RAND()
         LIMIT 1
-      `, [subjectId, assessmentId, ...usedQuestionsArray, targetDifficulty]);
+      `, [subjectId, assessmentId, ...usedQuestionsArray, currentDifficulty]);
     }
   } else if (assessmentId) {
     // If only assessmentId exists, exclude already used questions from database
-    questions = await executeQuery(`
-      SELECT id, question_text, options, difficulty_level 
-      FROM questions 
-      WHERE subject_id = ? 
-      AND difficulty_level BETWEEN ? AND ?
-      AND id NOT IN (
-        SELECT question_id FROM assessment_responses WHERE assessment_id = ?
-      )
-      ORDER BY ABS(difficulty_level - ?) ASC, RAND()
-      LIMIT 1
-    `, [
-      subjectId,
-      targetDifficulty - 10,
-      targetDifficulty + 10,
-      assessmentId,
-      targetDifficulty
-    ]);
+    if (isCorrect) {
+      // If correct: find closest HARDER question
+      questions = await executeQuery(`
+        SELECT id, question_text, options, difficulty_level 
+        FROM questions 
+        WHERE subject_id = ? 
+        AND difficulty_level > ?
+        AND id NOT IN (
+          SELECT question_id FROM assessment_responses WHERE assessment_id = ?
+        )
+        ORDER BY difficulty_level ASC
+        LIMIT 1
+      `, [subjectId, currentDifficulty, assessmentId]);
+    } else {
+      // If incorrect: find closest EASIER question
+      questions = await executeQuery(`
+        SELECT id, question_text, options, difficulty_level 
+        FROM questions 
+        WHERE subject_id = ? 
+        AND difficulty_level < ?
+        AND id NOT IN (
+          SELECT question_id FROM assessment_responses WHERE assessment_id = ?
+        )
+        ORDER BY difficulty_level DESC
+        LIMIT 1
+      `, [subjectId, currentDifficulty, assessmentId]);
+    }
 
-    // If no questions in range, expand search
+    // If no questions found in the preferred direction, fall back to any available question
     if (questions.length === 0) {
       questions = await executeQuery(`
         SELECT id, question_text, options, difficulty_level 
@@ -89,7 +109,7 @@ const findClosestQuestion = async (targetDifficulty, subjectId, assessmentId, us
         )
         ORDER BY ABS(difficulty_level - ?) ASC, RAND()
         LIMIT 1
-      `, [subjectId, assessmentId, targetDifficulty]);
+      `, [subjectId, assessmentId, currentDifficulty]);
     }
   } else {
     // If no assessmentId (first question), just get any question
@@ -102,9 +122,9 @@ const findClosestQuestion = async (targetDifficulty, subjectId, assessmentId, us
       LIMIT 1
     `, [
       subjectId,
-      targetDifficulty - 10,
-      targetDifficulty + 10,
-      targetDifficulty
+      currentDifficulty - 10,
+      currentDifficulty + 10,
+      currentDifficulty
     ]);
 
     // If no questions in range, expand search
@@ -115,7 +135,7 @@ const findClosestQuestion = async (targetDifficulty, subjectId, assessmentId, us
         WHERE subject_id = ?
         ORDER BY ABS(difficulty_level - ?) ASC, RAND()
         LIMIT 1
-      `, [subjectId, targetDifficulty]);
+      `, [subjectId, currentDifficulty]);
     }
   }
 
@@ -163,7 +183,7 @@ export const startAssessment = async (req, res) => {
     }
 
     // Get first question based on adaptive starting difficulty
-    const firstQuestion = await findClosestQuestion(startingDifficulty, subjectId, null);
+    const firstQuestion = await findClosestQuestion(startingDifficulty, null, subjectId, null);
 
     if (!firstQuestion) {
       return res.status(404).json({
@@ -310,12 +330,8 @@ export const submitAnswer = async (req, res) => {
       });
     }
 
-    // MAP Adaptive Algorithm: Get next question difficulty
-    const nextDifficulty = getNextQuestionDifficulty(session.currentDifficulty, isCorrect);
-    session.currentDifficulty = nextDifficulty;
-
-    // Find next question using adaptive algorithm
-    const nextQuestion = await findClosestQuestion(nextDifficulty, session.subjectId, assessmentId, session.usedQuestions);
+    // Find next question using adaptive algorithm based on current answer
+    const nextQuestion = await findClosestQuestion(question.difficulty_level, isCorrect, session.subjectId, assessmentId, session.usedQuestions);
 
     if (!nextQuestion) {
       return res.status(404).json({
@@ -328,7 +344,6 @@ export const submitAnswer = async (req, res) => {
       completed: false,
       isCorrect,
       currentRIT: session.currentRIT,
-      nextDifficulty: nextDifficulty,
       question: {
         id: nextQuestion.id,
         text: nextQuestion.question_text,
