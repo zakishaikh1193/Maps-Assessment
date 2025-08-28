@@ -735,16 +735,29 @@ export const getGrowthOverTime = async (req, res) => {
     const studentId = req.user.id;
 
     // Get student's RIT scores over time for this subject
+    // Use window function to get only the latest assessment for each year+season combination
     const studentScores = await executeQuery(`
       SELECT 
         assessment_period,
         year,
         rit_score,
         date_taken
-      FROM assessments 
-      WHERE student_id = ? 
-      AND subject_id = ? 
-      AND rit_score IS NOT NULL
+      FROM (
+        SELECT 
+          assessment_period,
+          year,
+          rit_score,
+          date_taken,
+          ROW_NUMBER() OVER (
+            PARTITION BY year, assessment_period 
+            ORDER BY date_taken DESC, id DESC
+          ) as rn
+        FROM assessments 
+        WHERE student_id = ? 
+        AND subject_id = ? 
+        AND rit_score IS NOT NULL
+      ) ranked
+      WHERE rn = 1
       ORDER BY year ASC, 
         CASE assessment_period 
           WHEN 'Fall' THEN 1 
