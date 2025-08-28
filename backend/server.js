@@ -19,6 +19,8 @@ import authRoutes from './routes/auth.js';
 import subjectsRoutes from './routes/subjects.js';
 import adminRoutes from './routes/admin.js';
 import studentRoutes from './routes/student.js';
+import schoolsRoutes from './routes/schools.js';
+import gradesRoutes from './routes/grades.js';
 
 // Load environment variables
 dotenv.config();
@@ -57,6 +59,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/subjects', subjectsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/student', studentRoutes);
+app.use('/api/schools', schoolsRoutes);
+app.use('/api/grades', gradesRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -68,6 +72,8 @@ app.get('/', (req, res) => {
       subjects: '/api/subjects',
       admin: '/api/admin',
       student: '/api/student',
+      schools: '/api/schools',
+      grades: '/api/grades',
       health: '/health'
     },
     documentation: 'API documentation coming soon'

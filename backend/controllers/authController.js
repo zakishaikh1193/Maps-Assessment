@@ -16,11 +16,17 @@ export const login = async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Get user from database
-    const users = await executeQuery(
-      'SELECT id, username, password, role, first_name, last_name, created_at FROM users WHERE username = ?',
-      [username]
-    );
+    // Get user from database with school and grade info
+    const users = await executeQuery(`
+      SELECT 
+        u.id, u.username, u.password, u.role, u.first_name, u.last_name, u.created_at,
+        s.name as school_name, s.id as school_id,
+        g.display_name as grade_name, g.id as grade_id, g.grade_level
+      FROM users u
+      LEFT JOIN schools s ON u.school_id = s.id
+      LEFT JOIN grades g ON u.grade_id = g.id
+      WHERE u.username = ?
+    `, [username]);
 
     if (users.length === 0) {
       return res.status(401).json({
@@ -48,7 +54,16 @@ export const login = async (req, res) => {
     const formattedUser = {
       ...userWithoutPassword,
       firstName: first_name,
-      lastName: last_name
+      lastName: last_name,
+      school: user.school_name ? {
+        id: user.school_id,
+        name: user.school_name
+      } : null,
+      grade: user.grade_name ? {
+        id: user.grade_id,
+        name: user.grade_name,
+        level: user.grade_level
+      } : null
     };
 
     // Update last login (optional)
@@ -75,7 +90,7 @@ export const login = async (req, res) => {
 // Register new user
 export const register = async (req, res) => {
   try {
-    const { username, password, role, firstName, lastName } = req.body;
+    const { username, password, role, firstName, lastName, schoolId, gradeId } = req.body;
 
     // Check if username already exists
     const existingUsers = await executeQuery(
@@ -96,15 +111,21 @@ export const register = async (req, res) => {
 
     // Insert new user
     const result = await executeQuery(
-      'INSERT INTO users (username, password, role, first_name, last_name) VALUES (?, ?, ?, ?, ?)',
-      [username, hashedPassword, role, firstName || null, lastName || null]
+      'INSERT INTO users (username, password, role, first_name, last_name, school_id, grade_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [username, hashedPassword, role, firstName || null, lastName || null, schoolId || null, gradeId || null]
     );
 
-    // Get the created user
-    const newUsers = await executeQuery(
-      'SELECT id, username, role, first_name, last_name, created_at FROM users WHERE id = ?',
-      [result.insertId]
-    );
+    // Get the created user with school and grade info
+    const newUsers = await executeQuery(`
+      SELECT 
+        u.id, u.username, u.role, u.first_name, u.last_name, u.created_at,
+        s.name as school_name, s.id as school_id,
+        g.display_name as grade_name, g.id as grade_id, g.grade_level
+      FROM users u
+      LEFT JOIN schools s ON u.school_id = s.id
+      LEFT JOIN grades g ON u.grade_id = g.id
+      WHERE u.id = ?
+    `, [result.insertId]);
 
     const newUser = newUsers[0];
 
@@ -113,7 +134,16 @@ export const register = async (req, res) => {
     const formattedUser = {
       ...userWithoutNames,
       firstName: first_name,
-      lastName: last_name
+      lastName: last_name,
+      school: newUser.school_name ? {
+        id: newUser.school_id,
+        name: newUser.school_name
+      } : null,
+      grade: newUser.grade_name ? {
+        id: newUser.grade_id,
+        name: newUser.grade_name,
+        level: newUser.grade_level
+      } : null
     };
 
     // Generate token
@@ -137,12 +167,40 @@ export const register = async (req, res) => {
   // Verify token
   export const verifyToken = async (req, res) => {
     try {
-      // User is already attached to req by auth middleware
-      const { password, first_name, last_name, ...userWithoutPassword } = req.user;
+      // Get fresh user data with school and grade info
+      const users = await executeQuery(`
+        SELECT 
+          u.id, u.username, u.role, u.first_name, u.last_name, u.created_at,
+          s.name as school_name, s.id as school_id,
+          g.display_name as grade_name, g.id as grade_id, g.grade_level
+        FROM users u
+        LEFT JOIN schools s ON u.school_id = s.id
+        LEFT JOIN grades g ON u.grade_id = g.id
+        WHERE u.id = ?
+      `, [req.user.id]);
+
+      if (users.length === 0) {
+        return res.status(404).json({
+          error: 'User not found',
+          code: 'USER_NOT_FOUND'
+        });
+      }
+
+      const user = users[0];
+      const { first_name, last_name, ...userWithoutNames } = user;
       const formattedUser = {
-        ...userWithoutPassword,
+        ...userWithoutNames,
         firstName: first_name,
-        lastName: last_name
+        lastName: last_name,
+        school: user.school_name ? {
+          id: user.school_id,
+          name: user.school_name
+        } : null,
+        grade: user.grade_name ? {
+          id: user.grade_id,
+          name: user.grade_name,
+          level: user.grade_level
+        } : null
       };
       
       res.json({

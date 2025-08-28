@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Aug 25, 2025 at 01:05 PM
+-- Generation Time: Aug 28, 2025 at 06:49 AM
 -- Server version: 9.1.0
 -- PHP Version: 8.1.31
 
@@ -32,28 +32,107 @@ CREATE TABLE IF NOT EXISTS `assessments` (
   `id` int NOT NULL AUTO_INCREMENT,
   `student_id` int NOT NULL,
   `subject_id` int NOT NULL,
-  `assessment_period` enum('Fall','Winter','Spring') COLLATE utf8mb4_general_ci NOT NULL,
-  `final_score` int DEFAULT NULL,
+  `assessment_period` enum('Fall','Winter','Spring') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `total_questions` int DEFAULT '10',
   `correct_answers` int DEFAULT '0',
   `date_taken` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `duration_minutes` int DEFAULT NULL,
+  `rit_score` int DEFAULT NULL,
+  `year` int NOT NULL DEFAULT '2025',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_student_subject_period` (`student_id`,`subject_id`,`assessment_period`),
   KEY `subject_id` (`subject_id`),
-  KEY `idx_student_subject` (`student_id`,`subject_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  KEY `idx_student_subject` (`student_id`,`subject_id`),
+  KEY `idx_assessments_rit_score` (`rit_score`),
+  KEY `idx_assessments_year` (`year`),
+  KEY `idx_assessments_student_subject_year` (`student_id`,`subject_id`,`year`)
+) ENGINE=MyISAM AUTO_INCREMENT=82 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `assessments`
 --
 
-INSERT INTO `assessments` (`id`, `student_id`, `subject_id`, `assessment_period`, `final_score`, `total_questions`, `correct_answers`, `date_taken`, `duration_minutes`) VALUES
-(1, 2, 3, 'Fall', NULL, 10, 0, '2025-08-25 12:56:35', NULL),
-(2, 2, 4, 'Fall', NULL, 10, 0, '2025-08-25 12:56:38', NULL),
-(3, 2, 4, 'Winter', NULL, 10, 0, '2025-08-25 12:57:41', NULL),
-(4, 2, 4, 'Spring', NULL, 10, 0, '2025-08-25 12:57:44', NULL),
-(5, 2, 3, 'Winter', NULL, 10, 0, '2025-08-25 12:57:46', NULL);
+INSERT INTO `assessments` (`id`, `student_id`, `subject_id`, `assessment_period`, `total_questions`, `correct_answers`, `date_taken`, `duration_minutes`, `rit_score`, `year`) VALUES
+(1, 2, 4, 'Spring', 10, 7, '2025-08-26 08:46:38', 1, 290, 2025),
+(2, 3, 4, 'Spring', 10, 3, '2025-08-26 08:49:32', 1, 177, 2025),
+(3, 2, 4, 'Fall', 50, 32, '2022-09-15 04:30:00', 45, 183, 2022),
+(4, 2, 4, 'Winter', 52, 35, '2022-12-10 04:30:00', 46, 196, 2022),
+(5, 2, 4, 'Spring', 48, 30, '2022-04-20 04:30:00', 44, 200, 2022),
+(6, 2, 4, 'Fall', 50, 36, '2023-09-14 04:30:00', 47, 204, 2023),
+(7, 2, 4, 'Winter', 49, 34, '2023-12-12 04:30:00', 43, 211, 2023),
+(8, 2, 4, 'Spring', 51, 37, '2023-04-18 04:30:00', 45, 210, 2023),
+(9, 2, 4, 'Fall', 53, 38, '2024-09-16 04:30:00', 48, 220, 2024),
+(10, 2, 4, 'Winter', 50, 35, '2024-12-11 04:30:00', 47, 215, 2024),
+(11, 2, 4, 'Spring', 52, 39, '2024-04-19 04:30:00', 46, 225, 2024),
+(12, 2, 4, 'Fall', 55, 42, '2025-09-17 04:30:00', 49, 230, 2025),
+(13, 2, 4, 'Winter', 54, 41, '2025-12-13 04:30:00', 50, 240, 2025),
+(14, 3, 4, 'Fall', 50, 32, '2022-09-15 04:30:00', 45, 181, 2022),
+(15, 3, 4, 'Winter', 52, 34, '2022-12-10 04:30:00', 46, 190, 2022),
+(16, 3, 4, 'Spring', 48, 30, '2022-04-20 04:30:00', 44, 157, 2022),
+(17, 3, 4, 'Fall', 50, 36, '2023-09-14 04:30:00', 47, 178, 2023),
+(18, 3, 4, 'Winter', 49, 34, '2023-12-12 04:30:00', 43, 200, 2023),
+(19, 3, 4, 'Spring', 51, 37, '2023-04-18 04:30:00', 45, 181, 2023),
+(20, 3, 4, 'Fall', 53, 38, '2024-09-16 04:30:00', 48, 175, 2024),
+(21, 3, 4, 'Winter', 50, 35, '2024-12-11 04:30:00', 47, 185, 2024),
+(22, 3, 4, 'Spring', 52, 39, '2024-04-19 04:30:00', 46, 164, 2024),
+(23, 3, 4, 'Fall', 55, 42, '2025-09-17 04:30:00', 49, 174, 2025),
+(24, 3, 4, 'Winter', 54, 41, '2025-12-13 04:30:00', 50, 174, 2025),
+(25, 4, 4, 'Fall', 50, 33, '2022-09-15 04:30:00', 45, 190, 2022),
+(26, 4, 4, 'Winter', 52, 36, '2022-12-10 04:30:00', 46, 188, 2022),
+(27, 4, 4, 'Spring', 48, 31, '2022-04-20 04:30:00', 44, 230, 2022),
+(28, 4, 4, 'Fall', 50, 37, '2023-09-14 04:30:00', 47, 173, 2023),
+(29, 4, 4, 'Winter', 49, 35, '2023-12-12 04:30:00', 43, 198, 2023),
+(30, 4, 4, 'Spring', 51, 38, '2023-04-18 04:30:00', 45, 202, 2023),
+(31, 4, 4, 'Fall', 53, 39, '2024-09-16 04:30:00', 48, 204, 2024),
+(32, 4, 4, 'Winter', 50, 36, '2024-12-11 04:30:00', 47, 173, 2024),
+(33, 4, 4, 'Spring', 52, 40, '2024-04-19 04:30:00', 46, 228, 2024),
+(34, 4, 4, 'Fall', 55, 43, '2025-09-17 04:30:00', 49, 185, 2025),
+(35, 4, 4, 'Winter', 54, 42, '2025-12-13 04:30:00', 50, 197, 2025),
+(36, 4, 4, 'Spring', 56, 44, '2025-04-21 04:30:00', 51, 208, 2025),
+(37, 5, 4, 'Fall', 50, 31, '2022-09-15 04:30:00', 45, 169, 2022),
+(38, 5, 4, 'Winter', 52, 34, '2022-12-10 04:30:00', 46, 132, 2022),
+(39, 5, 4, 'Spring', 48, 30, '2022-04-20 04:30:00', 44, 176, 2022),
+(40, 5, 4, 'Fall', 50, 35, '2023-09-14 04:30:00', 47, 162, 2023),
+(41, 5, 4, 'Winter', 49, 34, '2023-12-12 04:30:00', 43, 172, 2023),
+(42, 5, 4, 'Spring', 51, 36, '2023-04-18 04:30:00', 45, 145, 2023),
+(43, 5, 4, 'Fall', 53, 37, '2024-09-16 04:30:00', 48, 159, 2024),
+(44, 5, 4, 'Winter', 50, 35, '2024-12-11 04:30:00', 47, 190, 2024),
+(45, 5, 4, 'Spring', 52, 38, '2024-04-19 04:30:00', 46, 151, 2024),
+(46, 5, 4, 'Fall', 55, 40, '2025-09-17 04:30:00', 49, 169, 2025),
+(47, 5, 4, 'Winter', 54, 41, '2025-12-13 04:30:00', 50, 168, 2025),
+(48, 5, 4, 'Spring', 56, 42, '2025-04-21 04:30:00', 51, 184, 2025),
+(49, 6, 4, 'Fall', 50, 32, '2022-09-15 04:30:00', 45, 250, 2022),
+(50, 6, 4, 'Winter', 52, 35, '2022-12-10 04:30:00', 46, 268, 2022),
+(51, 6, 4, 'Spring', 48, 30, '2022-04-20 04:30:00', 44, 236, 2022),
+(52, 6, 4, 'Fall', 50, 37, '2023-09-14 04:30:00', 47, 248, 2023),
+(53, 6, 4, 'Winter', 49, 36, '2023-12-12 04:30:00', 43, 222, 2023),
+(54, 6, 4, 'Spring', 51, 38, '2023-04-18 04:30:00', 45, 279, 2023),
+(55, 6, 4, 'Fall', 53, 39, '2024-09-16 04:30:00', 48, 235, 2024),
+(56, 6, 4, 'Winter', 50, 37, '2024-12-11 04:30:00', 47, 271, 2024),
+(57, 6, 4, 'Spring', 52, 40, '2024-04-19 04:30:00', 46, 239, 2024),
+(58, 6, 4, 'Fall', 55, 42, '2025-09-17 04:30:00', 49, 269, 2025),
+(59, 6, 4, 'Winter', 54, 43, '2025-12-13 04:30:00', 50, 278, 2025),
+(60, 6, 4, 'Spring', 56, 44, '2025-04-21 04:30:00', 51, 273, 2025),
+(61, 7, 4, 'Fall', 50, 30, '2022-09-15 04:30:00', 45, 137, 2022),
+(62, 7, 4, 'Winter', 52, 33, '2022-12-10 04:30:00', 46, 114, 2022),
+(63, 7, 4, 'Spring', 48, 29, '2022-04-20 04:30:00', 44, 124, 2022),
+(64, 7, 4, 'Fall', 50, 34, '2023-09-14 04:30:00', 47, 148, 2023),
+(65, 7, 4, 'Winter', 49, 33, '2023-12-12 04:30:00', 43, 145, 2023),
+(66, 7, 4, 'Spring', 51, 35, '2023-04-18 04:30:00', 45, 132, 2023),
+(67, 7, 4, 'Fall', 53, 36, '2024-09-16 04:30:00', 48, 156, 2024),
+(68, 7, 4, 'Winter', 50, 34, '2024-12-11 04:30:00', 47, 144, 2024),
+(69, 7, 4, 'Spring', 52, 37, '2024-04-19 04:30:00', 46, 131, 2024),
+(70, 7, 4, 'Fall', 55, 39, '2025-09-17 04:30:00', 49, 136, 2025),
+(71, 7, 4, 'Winter', 54, 40, '2025-12-13 04:30:00', 50, 146, 2025),
+(72, 7, 4, 'Spring', 56, 41, '2025-04-21 04:30:00', 51, 166, 2025),
+(73, 2, 4, 'Spring', 10, 8, '2025-08-26 11:40:45', 1, 260, 2025),
+(74, 2, 6, 'Spring', 10, 0, '2025-08-28 06:25:45', NULL, NULL, 2025),
+(75, 2, 6, 'Spring', 10, 0, '2025-08-28 06:28:41', NULL, NULL, 2025),
+(76, 2, 6, 'Spring', 10, 0, '2025-08-28 06:29:15', NULL, NULL, 2025),
+(77, 2, 6, 'Spring', 10, 0, '2025-08-28 06:29:16', NULL, NULL, 2025),
+(78, 5, 6, 'Spring', 10, 0, '2025-08-28 06:40:58', NULL, NULL, 2025),
+(79, 5, 6, 'Spring', 10, 0, '2025-08-28 06:41:12', NULL, NULL, 2025),
+(80, 5, 6, 'Spring', 10, 0, '2025-08-28 06:41:23', NULL, NULL, 2025),
+(81, 5, 6, 'Spring', 10, 0, '2025-08-28 06:41:35', NULL, NULL, 2025);
 
 -- --------------------------------------------------------
 
@@ -71,10 +150,59 @@ CREATE TABLE IF NOT EXISTS `assessment_responses` (
   `is_correct` tinyint(1) DEFAULT NULL,
   `response_time_seconds` int DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `question_difficulty` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `assessment_id` (`assessment_id`),
-  KEY `question_id` (`question_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  KEY `question_id` (`question_id`),
+  KEY `idx_responses_question_difficulty` (`question_difficulty`)
+) ENGINE=MyISAM AUTO_INCREMENT=42 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `assessment_responses`
+--
+
+INSERT INTO `assessment_responses` (`id`, `assessment_id`, `question_id`, `question_order`, `selected_option_index`, `is_correct`, `response_time_seconds`, `created_at`, `question_difficulty`) VALUES
+(1, 1, 70, 1, 3, 0, NULL, '2025-08-26 08:46:47', 230),
+(2, 1, 26, 2, 0, 1, NULL, '2025-08-26 08:46:51', 230),
+(3, 1, 101, 3, 0, 1, NULL, '2025-08-26 08:46:59', 230),
+(4, 1, 58, 4, 0, 1, NULL, '2025-08-26 08:47:07', 240),
+(5, 1, 39, 5, 2, 0, NULL, '2025-08-26 08:47:11', 240),
+(6, 1, 83, 6, 0, 1, NULL, '2025-08-26 08:47:15', 240),
+(7, 1, 110, 7, 0, 1, NULL, '2025-08-26 08:47:18', 240),
+(8, 1, 72, 8, 1, 0, NULL, '2025-08-26 08:47:27', 250),
+(9, 1, 52, 9, 0, 1, NULL, '2025-08-26 08:47:37', 250),
+(10, 1, 23, 10, 2, 1, NULL, '2025-08-26 08:47:43', 250),
+(11, 2, 45, 1, 1, 0, NULL, '2025-08-26 08:49:33', 220),
+(12, 2, 13, 2, 2, 1, NULL, '2025-08-26 08:49:36', 220),
+(13, 2, 19, 3, 1, 0, NULL, '2025-08-26 08:49:38', 220),
+(14, 2, 76, 4, 3, 0, NULL, '2025-08-26 08:49:41', 220),
+(15, 2, 63, 5, 1, 0, NULL, '2025-08-26 08:49:44', 210),
+(16, 2, 32, 6, 0, 0, NULL, '2025-08-26 08:49:47', 210),
+(17, 2, 88, 7, 3, 0, NULL, '2025-08-26 08:49:50', 210),
+(18, 2, 40, 8, 0, 1, NULL, '2025-08-26 08:49:56', 200),
+(19, 2, 97, 9, 2, 0, NULL, '2025-08-26 08:50:05', 200),
+(20, 2, 54, 10, 0, 1, NULL, '2025-08-26 08:50:08', 200),
+(21, 73, 110, 1, 0, 1, NULL, '2025-08-26 11:40:52', 240),
+(22, 73, 58, 2, 0, 1, NULL, '2025-08-26 11:40:59', 240),
+(23, 73, 23, 3, 3, 0, NULL, '2025-08-26 11:41:02', 250),
+(24, 73, 39, 4, 0, 1, NULL, '2025-08-26 11:41:10', 240),
+(25, 73, 52, 5, 0, 1, NULL, '2025-08-26 11:41:17', 250),
+(26, 73, 89, 6, 0, 1, NULL, '2025-08-26 11:41:22', 250),
+(27, 73, 17, 7, 2, 1, NULL, '2025-08-26 11:41:28', 250),
+(28, 73, 82, 8, 0, 1, NULL, '2025-08-26 11:41:34', 260),
+(29, 73, 108, 9, 1, 0, NULL, '2025-08-26 11:41:41', 260),
+(30, 73, 64, 10, 0, 1, NULL, '2025-08-26 11:41:46', 260),
+(31, 74, 119, 1, 1, 1, NULL, '2025-08-28 06:25:47', 234),
+(32, 74, 119, 2, 1, 1, NULL, '2025-08-28 06:25:50', 234),
+(33, 75, 119, 1, 1, 0, NULL, '2025-08-28 06:28:45', 240),
+(34, 75, 121, 2, 1, 0, NULL, '2025-08-28 06:29:05', 281),
+(35, 78, 119, 1, 3, 0, NULL, '2025-08-28 06:41:02', 240),
+(36, 78, 120, 2, 2, 1, NULL, '2025-08-28 06:41:06', 178),
+(37, 79, 119, 1, 2, 1, NULL, '2025-08-28 06:41:15', 240),
+(38, 80, 119, 1, 3, 0, NULL, '2025-08-28 06:41:27', 240),
+(39, 80, 120, 2, 2, 1, NULL, '2025-08-28 06:41:30', 178),
+(40, 81, 119, 1, 2, 1, NULL, '2025-08-28 06:41:41', 240),
+(41, 81, 121, 2, 3, 1, NULL, '2025-08-28 06:41:45', 281);
 
 -- --------------------------------------------------------
 
@@ -86,7 +214,7 @@ DROP TABLE IF EXISTS `questions`;
 CREATE TABLE IF NOT EXISTS `questions` (
   `id` int NOT NULL AUTO_INCREMENT,
   `subject_id` int NOT NULL,
-  `question_text` text COLLATE utf8mb4_general_ci NOT NULL,
+  `question_text` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `options` json NOT NULL,
   `correct_option_index` int NOT NULL,
   `difficulty_level` int NOT NULL,
@@ -96,18 +224,11 @@ CREATE TABLE IF NOT EXISTS `questions` (
   PRIMARY KEY (`id`),
   KEY `created_by` (`created_by`),
   KEY `idx_subject_difficulty` (`subject_id`,`difficulty_level`)
-) ;
+) ENGINE=MyISAM AUTO_INCREMENT=122 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `questions`
 --
--- Add RIT score column
-ALTER TABLE assessments 
-ADD COLUMN rit_score INT DEFAULT NULL;
-
--- Add question difficulty tracking
-ALTER TABLE assessment_responses 
-ADD COLUMN question_difficulty INT DEFAULT NULL;
 
 INSERT INTO `questions` (`id`, `subject_id`, `question_text`, `options`, `correct_option_index`, `difficulty_level`, `created_by`, `created_at`, `updated_at`) VALUES
 (5, 3, 'Mitochondria is ______ of the cell.', '[\"Brain\", \"Powerhouse\", \"Nucleus\", \"Factory\"]', 1, 167, 1, '2025-08-25 11:36:41', '2025-08-25 11:58:15'),
@@ -222,7 +343,10 @@ INSERT INTO `questions` (`id`, `subject_id`, `question_text`, `options`, `correc
 (115, 4, 'What is the purpose of a \'version control system\'?', '[\"To track changes to files over time\", \"To store different versions of a software application\", \"To collaborate with other developers on a project\", \"All of the above\"]', 3, 270, 1, '2025-08-25 12:42:57', '2025-08-25 12:42:57'),
 (116, 4, 'What is the difference between \'null\' and \'undefined\' in JavaScript?', '[\"\'null\' is an assigned value, while \'undefined\' means a variable has been declared but has not yet been assigned a value\", \"\'undefined\' is an assigned value, while \'null\' means a variable has been declared but has not yet been assigned a value\", \"They are the same\", \"They are used for different data types\"]', 0, 350, 1, '2025-08-25 12:42:57', '2025-08-25 12:42:57'),
 (117, 4, 'What is \'cybersecurity\'?', '[\"The practice of protecting systems, networks, and programs from digital attacks\", \"A type of computer software\", \"A career in the tech industry\", \"A method of data storage\"]', 0, 170, 1, '2025-08-25 12:42:57', '2025-08-25 12:42:57'),
-(118, 4, 'What is the purpose of a \'break\' statement in a loop?', '[\"To terminate the loop\", \"To skip the current iteration and continue with the next one\", \"To pause the execution of the loop\", \"To restart the loop\"]', 0, 190, 1, '2025-08-25 12:42:57', '2025-08-25 12:42:57');
+(118, 4, 'What is the purpose of a \'break\' statement in a loop?', '[\"To terminate the loop\", \"To skip the current iteration and continue with the next one\", \"To pause the execution of the loop\", \"To restart the loop\"]', 0, 190, 1, '2025-08-25 12:42:57', '2025-08-25 12:42:57'),
+(119, 6, 'What is the Square root of 27', '[\"1\", \"2\", \"3\", \"4\"]', 2, 240, 1, '2025-08-28 06:25:28', '2025-08-28 06:26:36'),
+(120, 6, 'What is 4+1 equals to', '[\"2\", \"1\", \"5\", \"4\"]', 2, 178, 1, '2025-08-28 06:27:03', '2025-08-28 06:28:24'),
+(121, 6, 'If f(n) = n⁵ – n, for n ϵ N, then f(n) is divisible by', '[\"25\", \"32\", \"43\", \"30\"]', 3, 281, 1, '2025-08-28 06:28:07', '2025-08-28 06:28:07');
 
 -- --------------------------------------------------------
 
@@ -233,12 +357,12 @@ INSERT INTO `questions` (`id`, `subject_id`, `question_text`, `options`, `correc
 DROP TABLE IF EXISTS `subjects`;
 CREATE TABLE IF NOT EXISTS `subjects` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `name` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
-  `description` text COLLATE utf8mb4_general_ci,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=MyISAM AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `subjects`
@@ -246,7 +370,8 @@ CREATE TABLE IF NOT EXISTS `subjects` (
 
 INSERT INTO `subjects` (`id`, `name`, `description`, `created_at`, `updated_at`) VALUES
 (4, 'Computer Science', 'Computer science and technology concepts assessment', '2025-08-25 12:28:05', '2025-08-25 12:28:05'),
-(3, 'Science', 'Science concepts and scientific reasoning assessment', '2025-08-25 09:11:41', '2025-08-25 09:11:41');
+(3, 'Science', 'Science concepts and scientific reasoning assessment', '2025-08-25 09:11:41', '2025-08-25 09:11:41'),
+(6, 'Maths', 'Mathematics', '2025-08-28 06:14:26', '2025-08-28 06:14:26');
 
 -- --------------------------------------------------------
 
@@ -257,18 +382,31 @@ INSERT INTO `subjects` (`id`, `name`, `description`, `created_at`, `updated_at`)
 DROP TABLE IF EXISTS `users`;
 CREATE TABLE IF NOT EXISTS `users` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `username` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
-  `password` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `role` enum('admin','student') COLLATE utf8mb4_general_ci NOT NULL,
-  `first_name` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `last_name` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `username` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `role` enum('admin','student') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `first_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `last_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`)
-) ENGINE=MyISAM AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=MyISAM AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `users`
+--
 
+INSERT INTO `users` (`id`, `username`, `password`, `role`, `first_name`, `last_name`, `created_at`, `updated_at`) VALUES
+(1, 'admin', '$2a$12$utUHQt62Ha25Q4D463yfAulVM7PpkUZB/gGGyOypCRd42C55UlciS', 'admin', 'System', 'Administrator', '2025-08-25 08:54:07', '2025-08-28 06:30:47'),
+(2, 'student1', '$2a$12$/ylwHiqD54XyNtdu3NAUauO5xvsfgyNkM5mXb5AWNjFJIGc3p3XW6', 'student', 'John', 'Doe', '2025-08-25 08:54:07', '2025-08-28 06:28:39'),
+(3, 'student2', '$2a$12$/ylwHiqD54XyNtdu3NAUauO5xvsfgyNkM5mXb5AWNjFJIGc3p3XW6', 'student', 'Jane', 'Smith', '2025-08-25 08:54:07', '2025-08-26 08:49:30'),
+(4, 'student3', '$2a$12$/ylwHiqD54XyNtdu3NAUauO5xvsfgyNkM5mXb5AWNjFJIGc3p3XW6', 'student', 'Student', 'Three', '2025-08-26 09:30:29', '2025-08-26 09:30:29'),
+(5, 'student4', '$2a$12$/ylwHiqD54XyNtdu3NAUauO5xvsfgyNkM5mXb5AWNjFJIGc3p3XW6', 'student', 'Student', 'Four', '2025-08-26 09:30:29', '2025-08-28 06:40:53'),
+(6, 'student5', '$2a$12$/ylwHiqD54XyNtdu3NAUauO5xvsfgyNkM5mXb5AWNjFJIGc3p3XW6', 'student', 'Student', 'Five', '2025-08-26 09:30:29', '2025-08-26 09:30:29'),
+(7, 'student6', '$2a$12$/ylwHiqD54XyNtdu3NAUauO5xvsfgyNkM5mXb5AWNjFJIGc3p3XW6', 'student', 'Student', 'Six', '2025-08-26 09:30:29', '2025-08-26 09:30:29'),
+(8, 'student7', '$2a$12$/ylwHiqD54XyNtdu3NAUauO5xvsfgyNkM5mXb5AWNjFJIGc3p3XW6', 'student', 'Student', 'Seven', '2025-08-26 09:30:29', '2025-08-26 09:30:29');
+COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
