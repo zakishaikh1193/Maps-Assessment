@@ -255,7 +255,7 @@ const GrowthOverTimeChart: React.FC<GrowthOverTimeChartProps> = ({ data }) => {
                 className="w-full h-2 rounded mb-1"
                 style={{ backgroundColor: colorMap.blue }}
               ></div>
-              <div className="text-gray-600">300+</div>
+              <div className="text-gray-600">301-350</div>
               <div className="text-gray-500">Blue</div>
             </div>
           </div>

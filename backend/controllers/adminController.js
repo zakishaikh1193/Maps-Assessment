@@ -82,7 +82,7 @@ export const getStudentGrowth = async (req, res) => {
         SUM(CASE WHEN rit_score BETWEEN 151 AND 200 THEN 1 ELSE 0 END) as orange_count,
         SUM(CASE WHEN rit_score BETWEEN 201 AND 250 THEN 1 ELSE 0 END) as yellow_count,
         SUM(CASE WHEN rit_score BETWEEN 251 AND 300 THEN 1 ELSE 0 END) as green_count,
-        SUM(CASE WHEN rit_score > 300 THEN 1 ELSE 0 END) as blue_count
+        SUM(CASE WHEN rit_score BETWEEN 301 AND 350 THEN 1 ELSE 0 END) as blue_count
       FROM assessments 
       WHERE subject_id = ? 
       AND rit_score IS NOT NULL
@@ -162,6 +162,7 @@ export const getAdminStats = async (req, res) => {
           WHEN difficulty_level BETWEEN 151 AND 200 THEN '151-200'
           WHEN difficulty_level BETWEEN 201 AND 250 THEN '201-250'
           WHEN difficulty_level BETWEEN 251 AND 300 THEN '251-300'
+          WHEN difficulty_level BETWEEN 301 AND 350 THEN '301-350'
         END as difficulty_range,
         COUNT(*) as count
       FROM questions 
@@ -171,6 +172,7 @@ export const getAdminStats = async (req, res) => {
           WHEN difficulty_level BETWEEN 151 AND 200 THEN '151-200'
           WHEN difficulty_level BETWEEN 201 AND 250 THEN '201-250'
           WHEN difficulty_level BETWEEN 251 AND 300 THEN '251-300'
+          WHEN difficulty_level BETWEEN 301 AND 350 THEN '301-350'
         END
       ORDER BY difficulty_range
     `);

@@ -73,8 +73,8 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
         throw new Error('All options must be filled');
       }
 
-      if (formData.difficultyLevel < 100 || formData.difficultyLevel > 300) {
-        throw new Error('Difficulty level must be between 100 and 300');
+      if (formData.difficultyLevel < 100 || formData.difficultyLevel > 350) {
+        throw new Error('Difficulty level must be between 100 and 350');
       }
 
       if (editingQuestion) {
@@ -209,7 +209,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
           <input
             type="range"
             min="100"
-            max="300"
+            max="350"
             value={formData.difficultyLevel}
             onChange={(e) => setFormData({ ...formData, difficultyLevel: Number(e.target.value) })}
             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
@@ -217,7 +217,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
           <div className="flex justify-between text-xs text-gray-500 mt-1">
             <span>100 (Easy)</span>
             <span>200 (Medium)</span>
-            <span>300 (Hard)</span>
+            <span>350 (Hard)</span>
           </div>
         </div>
 
