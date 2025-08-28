@@ -5,7 +5,7 @@ import { subjectsAPI, studentAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import Navigation from '../components/Navigation';
 import GrowthChart from '../components/GrowthChart';
-import { Play, Trophy, Calendar, BookOpen, TrendingUp } from 'lucide-react';
+import { Play, Trophy, Calendar, BookOpen, TrendingUp, FileText } from 'lucide-react';
 
 const StudentDashboard: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -51,6 +51,17 @@ const StudentDashboard: React.FC = () => {
     navigate('/assessment', { 
       state: { subjectId, period } 
     });
+  };
+
+  const viewLatestReport = async (subjectId: number) => {
+    try {
+      const detailedResults = await studentAPI.getLatestAssessmentDetails(subjectId);
+      navigate('/results', { 
+        state: detailedResults 
+      });
+    } catch (error) {
+      console.error('Failed to fetch latest assessment details:', error);
+    }
   };
 
   const getCompletedAssessments = (subjectId: number) => {
@@ -103,13 +114,29 @@ const StudentDashboard: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Welcome back, {user?.firstName || user?.username}!
           </h1>
+          {user?.school && user?.grade && (
+            <div className="flex items-center space-x-4 mb-2">
+              <div className="flex items-center space-x-2 text-gray-600">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                <span className="font-medium">{user.school.name}</span>
+              </div>
+              <div className="flex items-center space-x-2 text-gray-600">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+                <span className="font-medium">{user.grade.display_name}</span>
+              </div>
+            </div>
+          )}
           <p className="text-gray-600">
             Track your academic progress and take {currentSeason} assessments
           </p>
         </div>
 
         {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-blue-100 rounded-lg">
@@ -152,6 +179,21 @@ const StudentDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <svg className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {user?.grade?.display_name || 'N/A'}
+                </p>
+                <p className="text-gray-600">Current Grade</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -169,6 +211,16 @@ const StudentDashboard: React.FC = () => {
                       <div>
                         <h3 className="text-xl font-semibold text-gray-900">{subject.name}</h3>
                         <p className="text-gray-600">{subject.description}</p>
+                        {user?.school && user?.grade && (
+                          <div className="flex items-center space-x-3 mt-1">
+                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                              {user.school.name}
+                            </span>
+                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                              {user.grade.display_name}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       {latestRITScore && (
                         <div className="text-right">
@@ -236,14 +288,21 @@ const StudentDashboard: React.FC = () => {
                       )}
                     </div>
                     
-                    {/* Growth Chart Button */}
+                    {/* Action Buttons */}
                     {getCompletedAssessments(subject.id).length > 0 && (
-                      <div className="mt-3">
+                      <div className="mt-3 space-y-2">
                         <button
                           onClick={() => navigate(`/growth/${subject.id}`)}
                           className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
                         >
                           View Growth Chart
+                        </button>
+                        <button
+                          onClick={() => viewLatestReport(subject.id)}
+                          className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center justify-center space-x-2"
+                        >
+                          <FileText className="h-4 w-4" />
+                          <span>View Latest Report</span>
                         </button>
                       </div>
                     )}
@@ -288,7 +347,8 @@ const StudentDashboard: React.FC = () => {
                     .flatMap(subject => 
                       subject.assessments.map(assessment => ({
                         ...assessment,
-                        subjectName: subject.subjectName
+                        subjectName: subject.subjectName,
+                        subjectId: subject.subjectId
                       }))
                     )
                     .sort((a, b) => new Date(b.dateTaken).getTime() - new Date(a.dateTaken).getTime())
@@ -301,9 +361,17 @@ const StudentDashboard: React.FC = () => {
                             {assessment.assessmentPeriod} • {new Date(assessment.dateTaken).toLocaleDateString()}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-bold text-blue-600">{assessment.ritScore}</div>
-                          <div className="text-xs text-gray-500">{assessment.correctAnswers}/10</div>
+                        <div className="flex items-center space-x-3">
+                          <div className="text-right">
+                            <div className="font-bold text-blue-600">{assessment.ritScore}</div>
+                            <div className="text-xs text-gray-500">{assessment.correctAnswers}/10</div>
+                          </div>
+                          <button
+                            onClick={() => viewLatestReport(assessment.subjectId)}
+                            className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors text-xs font-medium"
+                          >
+                            View Report
+                          </button>
                         </div>
                       </div>
                     ))}

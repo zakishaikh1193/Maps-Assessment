@@ -11,6 +11,7 @@ export interface User {
   grade?: {
     id: number;
     name: string;
+    display_name: string;
     level: number;
   };
 }
@@ -43,6 +44,7 @@ export interface Grade {
 export interface Question {
   id: number;
   subjectId: number;
+  gradeId: number;
   questionText: string;
   options: string[];
   correctOptionIndex: number;
@@ -50,6 +52,7 @@ export interface Question {
   createdBy?: number;
   createdAt?: string;
   createdByUsername?: string;
+  gradeName?: string;
 }
 
 export interface Assessment {

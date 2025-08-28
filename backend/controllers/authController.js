@@ -62,6 +62,7 @@ export const login = async (req, res) => {
       grade: user.grade_name ? {
         id: user.grade_id,
         name: user.grade_name,
+        display_name: user.grade_name,
         level: user.grade_level || null
       } : null
     };

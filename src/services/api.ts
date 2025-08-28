@@ -83,6 +83,7 @@ export const subjectsAPI = {
 export const adminAPI = {
   createQuestion: async (questionData: {
     subjectId: number;
+    gradeId: number;
     questionText: string;
     options: string[];
     correctOptionIndex: number;
@@ -103,6 +104,8 @@ export const adminAPI = {
   },
 
   updateQuestion: async (questionId: number, questionData: {
+    subjectId: number;
+    gradeId: number;
     questionText: string;
     options: string[];
     correctOptionIndex: number;
@@ -229,6 +232,11 @@ export const studentAPI = {
 
   getDetailedResults: async (assessmentId: number) => {
     const response = await api.get(`/student/assessments/results/detailed/${assessmentId}`);
+    return response.data;
+  },
+
+  getLatestAssessmentDetails: async (subjectId: number) => {
+    const response = await api.get(`/student/assessments/latest/${subjectId}`);
     return response.data;
   },
 

@@ -16,7 +16,7 @@ const getNextQuestionDifficulty = (currentDifficulty, isCorrect) => {
 };
 
 // Find closest available question based on previous answer
-const findClosestQuestion = async (currentDifficulty, isCorrect, subjectId, assessmentId, usedQuestions = null) => {
+const findClosestQuestion = async (currentDifficulty, isCorrect, subjectId, assessmentId, studentGradeId, usedQuestions = null) => {
   let questions;
   
   if (assessmentId && usedQuestions) {
@@ -30,6 +30,7 @@ const findClosestQuestion = async (currentDifficulty, isCorrect, subjectId, asse
         SELECT id, question_text, options, difficulty_level 
         FROM questions 
         WHERE subject_id = ? 
+        AND (grade_id = ? OR grade_id IS NULL)
         AND difficulty_level > ?
         AND id NOT IN (
           SELECT question_id FROM assessment_responses WHERE assessment_id = ?
@@ -37,13 +38,14 @@ const findClosestQuestion = async (currentDifficulty, isCorrect, subjectId, asse
         AND id NOT IN (${placeholders || 'NULL'})
         ORDER BY difficulty_level ASC
         LIMIT 1
-      `, [subjectId, currentDifficulty, assessmentId, ...usedQuestionsArray]);
+      `, [subjectId, studentGradeId, currentDifficulty, assessmentId, ...usedQuestionsArray]);
     } else {
       // If incorrect: find closest EASIER question
       questions = await executeQuery(`
         SELECT id, question_text, options, difficulty_level 
         FROM questions 
         WHERE subject_id = ? 
+        AND (grade_id = ? OR grade_id IS NULL)
         AND difficulty_level < ?
         AND id NOT IN (
           SELECT question_id FROM assessment_responses WHERE assessment_id = ?
@@ -51,7 +53,7 @@ const findClosestQuestion = async (currentDifficulty, isCorrect, subjectId, asse
         AND id NOT IN (${placeholders || 'NULL'})
         ORDER BY difficulty_level DESC
         LIMIT 1
-      `, [subjectId, currentDifficulty, assessmentId, ...usedQuestionsArray]);
+      `, [subjectId, studentGradeId, currentDifficulty, assessmentId, ...usedQuestionsArray]);
     }
 
     // If no questions found in the preferred direction, fall back to any available question
@@ -60,13 +62,14 @@ const findClosestQuestion = async (currentDifficulty, isCorrect, subjectId, asse
         SELECT id, question_text, options, difficulty_level 
         FROM questions 
         WHERE subject_id = ?
+        AND (grade_id = ? OR grade_id IS NULL)
         AND id NOT IN (
           SELECT question_id FROM assessment_responses WHERE assessment_id = ?
         )
         AND id NOT IN (${placeholders || 'NULL'})
         ORDER BY ABS(difficulty_level - ?) ASC, RAND()
         LIMIT 1
-      `, [subjectId, assessmentId, ...usedQuestionsArray, currentDifficulty]);
+      `, [subjectId, studentGradeId, assessmentId, ...usedQuestionsArray, currentDifficulty]);
     }
   } else if (assessmentId) {
     // If only assessmentId exists, exclude already used questions from database
@@ -76,26 +79,28 @@ const findClosestQuestion = async (currentDifficulty, isCorrect, subjectId, asse
         SELECT id, question_text, options, difficulty_level 
         FROM questions 
         WHERE subject_id = ? 
+        AND (grade_id = ? OR grade_id IS NULL)
         AND difficulty_level > ?
         AND id NOT IN (
           SELECT question_id FROM assessment_responses WHERE assessment_id = ?
         )
         ORDER BY difficulty_level ASC
         LIMIT 1
-      `, [subjectId, currentDifficulty, assessmentId]);
+      `, [subjectId, studentGradeId, currentDifficulty, assessmentId]);
     } else {
       // If incorrect: find closest EASIER question
       questions = await executeQuery(`
         SELECT id, question_text, options, difficulty_level 
         FROM questions 
         WHERE subject_id = ? 
+        AND (grade_id = ? OR grade_id IS NULL)
         AND difficulty_level < ?
         AND id NOT IN (
           SELECT question_id FROM assessment_responses WHERE assessment_id = ?
         )
         ORDER BY difficulty_level DESC
         LIMIT 1
-      `, [subjectId, currentDifficulty, assessmentId]);
+      `, [subjectId, studentGradeId, currentDifficulty, assessmentId]);
     }
 
     // If no questions found in the preferred direction, fall back to any available question
@@ -166,6 +171,21 @@ export const startAssessment = async (req, res) => {
 
     // Note: Removed validation to allow multiple assessments for demo purposes
 
+    // Get student's grade
+    const studentInfo = await executeQuery(
+      'SELECT grade_id FROM users WHERE id = ?',
+      [studentId]
+    );
+
+    if (studentInfo.length === 0) {
+      return res.status(404).json({
+        error: 'Student not found',
+        code: 'STUDENT_NOT_FOUND'
+      });
+    }
+
+    const studentGradeId = studentInfo[0].grade_id;
+
     // Check for previous RIT score to determine starting difficulty (within current year)
     const previousAssessments = await executeQuery(
       'SELECT rit_score FROM assessments WHERE student_id = ? AND subject_id = ? AND year = ? AND rit_score IS NOT NULL ORDER BY date_taken DESC LIMIT 1',
@@ -183,7 +203,7 @@ export const startAssessment = async (req, res) => {
     }
 
     // Get first question based on adaptive starting difficulty
-    const firstQuestion = await findClosestQuestion(startingDifficulty, null, subjectId, null);
+    const firstQuestion = await findClosestQuestion(startingDifficulty, null, subjectId, null, studentGradeId);
 
     if (!firstQuestion) {
       return res.status(404).json({
@@ -248,6 +268,21 @@ export const submitAnswer = async (req, res) => {
   try {
     const { questionId, answerIndex, assessmentId } = req.body;
     const studentId = req.user.id;
+
+    // Get student's grade
+    const studentInfo = await executeQuery(
+      'SELECT grade_id FROM users WHERE id = ?',
+      [studentId]
+    );
+
+    if (studentInfo.length === 0) {
+      return res.status(404).json({
+        error: 'Student not found',
+        code: 'STUDENT_NOT_FOUND'
+      });
+    }
+
+    const studentGradeId = studentInfo[0].grade_id;
 
     // Find active session
     const sessionId = Object.keys(Object.fromEntries(activeSessions)).find(key => {
@@ -331,7 +366,7 @@ export const submitAnswer = async (req, res) => {
     }
 
     // Find next question using adaptive algorithm based on current answer
-    const nextQuestion = await findClosestQuestion(question.difficulty_level, isCorrect, session.subjectId, assessmentId, session.usedQuestions);
+    const nextQuestion = await findClosestQuestion(question.difficulty_level, isCorrect, session.subjectId, assessmentId, studentGradeId, session.usedQuestions);
 
     if (!nextQuestion) {
       return res.status(404).json({
@@ -538,6 +573,157 @@ export const getAssessmentResults = async (req, res) => {
     res.status(500).json({
       error: 'Failed to fetch assessment results',
       code: 'FETCH_RESULTS_ERROR'
+    });
+  }
+};
+
+// Get latest assessment details for a subject
+export const getLatestAssessmentDetails = async (req, res) => {
+  try {
+    const { subjectId } = req.params;
+    const studentId = req.user.id;
+
+    // Get the latest completed assessment for this subject
+    const latestAssessment = await executeQuery(`
+      SELECT id, assessment_period, rit_score, correct_answers, total_questions,
+             date_taken, duration_minutes, year
+      FROM assessments 
+      WHERE student_id = ? AND subject_id = ? AND rit_score IS NOT NULL
+      ORDER BY id DESC 
+      LIMIT 1
+    `, [studentId, subjectId]);
+
+    if (latestAssessment.length === 0) {
+      return res.status(404).json({
+        error: 'No completed assessments found for this subject',
+        code: 'NO_ASSESSMENTS_FOUND'
+      });
+    }
+
+    // Get the assessment ID and call the detailed results function
+    const assessmentId = latestAssessment[0].id;
+    console.log('Latest assessment found:', {
+      assessmentId,
+      subjectId,
+      studentId,
+      latestAssessment: latestAssessment[0]
+    });
+    
+    // Get detailed assessment results using existing logic
+    const currentAssessment = await executeQuery(`
+      SELECT 
+        a.id,
+        a.student_id,
+        a.subject_id,
+        a.assessment_period,
+        a.rit_score,
+        a.correct_answers,
+        a.total_questions,
+        a.date_taken,
+        a.duration_minutes,
+        a.year,
+        s.name as subject_name
+      FROM assessments a
+      JOIN subjects s ON a.subject_id = s.id
+      WHERE a.id = ? AND a.student_id = ? AND a.rit_score IS NOT NULL
+    `, [assessmentId, studentId]);
+
+    const assessment = currentAssessment[0];
+
+    // Get previous RIT score
+    const previousAssessment = await executeQuery(`
+      SELECT rit_score, date_taken, assessment_period, year
+      FROM assessments 
+      WHERE student_id = ? 
+      AND subject_id = ? 
+      AND id != ? 
+      AND rit_score IS NOT NULL
+      ORDER BY date_taken DESC 
+      LIMIT 1
+    `, [studentId, assessment.subject_id, assessmentId]);
+
+    // Get detailed response data
+    const responses = await executeQuery(`
+      SELECT 
+        ar.question_order,
+        ar.is_correct,
+        ar.question_difficulty,
+        q.question_text,
+        q.options,
+        ar.selected_option_index,
+        q.correct_option_index
+      FROM assessment_responses ar
+      JOIN questions q ON ar.question_id = q.id
+      WHERE ar.assessment_id = ?
+      ORDER BY ar.question_order
+    `, [assessmentId]);
+
+    // Calculate statistics
+    const totalQuestions = assessment.total_questions;
+    const correctAnswers = assessment.correct_answers;
+    const incorrectAnswers = totalQuestions - correctAnswers;
+    const previousRIT = previousAssessment.length > 0 ? previousAssessment[0].rit_score : null;
+    const currentRIT = assessment.rit_score;
+
+    // Format responses for frontend
+    const formattedResponses = responses.map(response => ({
+      questionNumber: response.question_order,
+      isCorrect: response.is_correct,
+      difficulty: response.question_difficulty,
+      questionText: response.question_text,
+      options: (() => {
+        if (typeof response.options === 'string') {
+          try {
+            return JSON.parse(response.options);
+          } catch (parseError) {
+            return [];
+          }
+        }
+        return response.options;
+      })(),
+      selectedAnswer: response.selected_option_index,
+      correctAnswer: response.correct_option_index
+    }));
+
+    // Create difficulty progression data for the graph
+    const difficultyProgression = responses.map(response => ({
+      questionNumber: response.question_order,
+      difficulty: response.question_difficulty,
+      isCorrect: response.is_correct
+    }));
+
+    res.json({
+      assessment: {
+        id: assessment.id,
+        subjectName: assessment.subject_name,
+        period: assessment.assessment_period,
+        year: assessment.year,
+        dateTaken: assessment.date_taken,
+        duration: assessment.duration_minutes
+      },
+      statistics: {
+        totalQuestions,
+        correctAnswers,
+        incorrectAnswers,
+        previousRIT,
+        currentRIT,
+        accuracy: Math.round((correctAnswers / totalQuestions) * 100)
+      },
+      responses: formattedResponses,
+      difficultyProgression: difficultyProgression,
+      previousAssessment: previousAssessment.length > 0 ? {
+        ritScore: previousAssessment[0].rit_score,
+        dateTaken: previousAssessment[0].date_taken,
+        period: previousAssessment[0].assessment_period,
+        year: previousAssessment[0].year
+      } : null
+    });
+
+  } catch (error) {
+    console.error('Error fetching latest assessment details:', error);
+    res.status(500).json({
+      error: 'Failed to fetch latest assessment details',
+      code: 'FETCH_LATEST_ASSESSMENT_ERROR'
     });
   }
 };

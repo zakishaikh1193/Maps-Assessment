@@ -305,7 +305,7 @@ export const createBulkQuestions = async (req, res) => {
 // Create new question
 export const createQuestion = async (req, res) => {
   try {
-    const { subjectId, questionText, options, correctOptionIndex, difficultyLevel } = req.body;
+    const { subjectId, gradeId, questionText, options, correctOptionIndex, difficultyLevel } = req.body;
 
     // Handle options format - convert string to array if needed
     let optionsArray = options;
@@ -347,15 +347,28 @@ export const createQuestion = async (req, res) => {
       });
     }
 
+    // Check if grade exists
+    const grades = await executeQuery(
+      'SELECT id FROM grades WHERE id = ?',
+      [gradeId]
+    );
+
+    if (grades.length === 0) {
+      return res.status(404).json({
+        error: 'Grade not found',
+        code: 'GRADE_NOT_FOUND'
+      });
+    }
+
     // Insert question
     const result = await executeQuery(
-      'INSERT INTO questions (subject_id, question_text, options, correct_option_index, difficulty_level, created_by) VALUES (?, ?, ?, ?, ?, ?)',
-      [subjectId, questionText, JSON.stringify(optionsArray), correctOptionIndex, difficultyLevel, req.user.id]
+      'INSERT INTO questions (subject_id, grade_id, question_text, options, correct_option_index, difficulty_level, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [subjectId, gradeId, questionText, JSON.stringify(optionsArray), correctOptionIndex, difficultyLevel, req.user.id]
     );
 
     // Get the created question
     const questions = await executeQuery(
-      'SELECT id, subject_id, question_text, options, correct_option_index, difficulty_level, created_at FROM questions WHERE id = ?',
+      'SELECT id, subject_id, grade_id, question_text, options, correct_option_index, difficulty_level, created_at FROM questions WHERE id = ?',
       [result.insertId]
     );
 
@@ -374,6 +387,7 @@ export const createQuestion = async (req, res) => {
       question: {
         id: question.id,
         subjectId: question.subject_id,
+        gradeId: question.grade_id,
         questionText: question.question_text,
         options: question.options,
         correctOptionIndex: question.correct_option_index,
@@ -401,14 +415,17 @@ export const getQuestionById = async (req, res) => {
       SELECT 
         q.id,
         q.subject_id,
+        q.grade_id,
         q.question_text,
         q.options,
         q.correct_option_index,
         q.difficulty_level,
         q.created_at,
-        u.username as created_by_username
+        u.username as created_by_username,
+        g.display_name as grade_name
       FROM questions q
       LEFT JOIN users u ON q.created_by = u.id
+      LEFT JOIN grades g ON q.grade_id = g.id
       WHERE q.id = ?
     `, [id]);
 
@@ -435,12 +452,14 @@ export const getQuestionById = async (req, res) => {
     res.json({
       id: question.id,
       subjectId: question.subject_id,
+      gradeId: question.grade_id,
       questionText: question.question_text,
       options: parsedOptions,
       correctOptionIndex: question.correct_option_index,
       difficultyLevel: question.difficulty_level,
       createdAt: question.created_at,
-      createdByUsername: question.created_by_username
+      createdByUsername: question.created_by_username,
+      gradeName: question.grade_name
     });
 
   } catch (error) {
@@ -470,19 +489,22 @@ export const getQuestionsBySubject = async (req, res) => {
       });
     }
 
-    // Get questions with creator info
+    // Get questions with creator info and grade info
     const questions = await executeQuery(`
       SELECT 
         q.id,
         q.subject_id,
+        q.grade_id,
         q.question_text,
         q.options,
         q.correct_option_index,
         q.difficulty_level,
         q.created_at,
-        u.username as created_by_username
+        u.username as created_by_username,
+        g.display_name as grade_name
       FROM questions q
       LEFT JOIN users u ON q.created_by = u.id
+      LEFT JOIN grades g ON q.grade_id = g.id
       WHERE q.subject_id = ?
       ORDER BY q.created_at DESC
     `, [subjectId]);
@@ -506,13 +528,15 @@ export const getQuestionsBySubject = async (req, res) => {
       return {
         id: q.id,
         subjectId: q.subject_id,
+        gradeId: q.grade_id,
         questionText: q.question_text,
         options: parsedOptions,
         correctOptionIndex: q.correct_option_index,
         difficultyLevel: q.difficulty_level,
         createdBy: q.created_by,
         createdAt: q.created_at,
-        createdByUsername: q.created_by_username
+        createdByUsername: q.created_by_username,
+        gradeName: q.grade_name
       };
     });
 
@@ -531,7 +555,7 @@ export const getQuestionsBySubject = async (req, res) => {
 export const updateQuestion = async (req, res) => {
   try {
     const { id } = req.params;
-    const { questionText, options, correctOptionIndex, difficultyLevel } = req.body;
+    const { subjectId, gradeId, questionText, options, correctOptionIndex, difficultyLevel } = req.body;
 
     // Check if question exists
     const questions = await executeQuery(
@@ -543,6 +567,32 @@ export const updateQuestion = async (req, res) => {
       return res.status(404).json({
         error: 'Question not found',
         code: 'QUESTION_NOT_FOUND'
+      });
+    }
+
+    // Check if subject exists
+    const subjects = await executeQuery(
+      'SELECT id FROM subjects WHERE id = ?',
+      [subjectId]
+    );
+
+    if (subjects.length === 0) {
+      return res.status(404).json({
+        error: 'Subject not found',
+        code: 'SUBJECT_NOT_FOUND'
+      });
+    }
+
+    // Check if grade exists
+    const grades = await executeQuery(
+      'SELECT id FROM grades WHERE id = ?',
+      [gradeId]
+    );
+
+    if (grades.length === 0) {
+      return res.status(404).json({
+        error: 'Grade not found',
+        code: 'GRADE_NOT_FOUND'
       });
     }
 
@@ -575,8 +625,8 @@ export const updateQuestion = async (req, res) => {
 
     // Update question
     await executeQuery(
-      'UPDATE questions SET question_text = ?, options = ?, correct_option_index = ?, difficulty_level = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [questionText, JSON.stringify(optionsArray), correctOptionIndex, difficultyLevel, id]
+      'UPDATE questions SET subject_id = ?, grade_id = ?, question_text = ?, options = ?, correct_option_index = ?, difficulty_level = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [subjectId, gradeId, questionText, JSON.stringify(optionsArray), correctOptionIndex, difficultyLevel, id]
     );
 
     // Get updated question
@@ -584,6 +634,7 @@ export const updateQuestion = async (req, res) => {
       SELECT 
         q.id,
         q.subject_id,
+        q.grade_id,
         q.question_text,
         q.options,
         q.correct_option_index,
@@ -610,6 +661,7 @@ export const updateQuestion = async (req, res) => {
       question: {
         id: question.id,
         subjectId: question.subject_id,
+        gradeId: question.grade_id,
         questionText: question.question_text,
         options: question.options,
         correctOptionIndex: question.correct_option_index,

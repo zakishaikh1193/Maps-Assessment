@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Subject, Question } from '../types';
-import { adminAPI } from '../services/api';
+import { Subject, Question, Grade } from '../types';
+import { adminAPI, gradesAPI } from '../services/api';
 import { AlertCircle, Save, X } from 'lucide-react';
 
 interface QuestionFormProps {
@@ -22,19 +22,34 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
 }) => {
   const [formData, setFormData] = useState({
     subjectId: selectedSubject.id,
+    gradeId: 0,
     questionText: '',
     options: ['', '', '', ''],
     correctOptionIndex: 0,
     difficultyLevel: 200
   });
+  const [grades, setGrades] = useState<Grade[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchGrades = async () => {
+      try {
+        const gradesData = await gradesAPI.getActive();
+        setGrades(gradesData);
+      } catch (err) {
+        console.error('Failed to fetch grades:', err);
+      }
+    };
+    fetchGrades();
+  }, []);
 
   useEffect(() => {
     console.log('QuestionForm useEffect - editingQuestion:', editingQuestion);
     if (editingQuestion) {
       console.log('Setting form data for editing:', {
         subjectId: editingQuestion.subjectId,
+        gradeId: editingQuestion.gradeId,
         questionText: editingQuestion.questionText,
         options: editingQuestion.options,
         correctOptionIndex: editingQuestion.correctOptionIndex,
@@ -42,6 +57,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
       });
       setFormData({
         subjectId: editingQuestion.subjectId,
+        gradeId: editingQuestion.gradeId || 0,
         questionText: editingQuestion.questionText,
         options: [...editingQuestion.options],
         correctOptionIndex: editingQuestion.correctOptionIndex,
@@ -50,6 +66,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
     } else {
       setFormData({
         subjectId: selectedSubject.id,
+        gradeId: 0,
         questionText: '',
         options: ['', '', '', ''],
         correctOptionIndex: 0,
@@ -80,6 +97,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
       if (editingQuestion) {
         await adminAPI.updateQuestion(editingQuestion.id, {
           subjectId: formData.subjectId,
+          gradeId: formData.gradeId,
           questionText: formData.questionText.trim(),
           options: formData.options.map(opt => opt.trim()),
           correctOptionIndex: formData.correctOptionIndex,
@@ -89,6 +107,7 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
       } else {
         await adminAPI.createQuestion({
           subjectId: formData.subjectId,
+          gradeId: formData.gradeId,
           questionText: formData.questionText.trim(),
           options: formData.options.map(opt => opt.trim()),
           correctOptionIndex: formData.correctOptionIndex,
@@ -150,6 +169,25 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
             {subjects.map((subject) => (
               <option key={subject.id} value={subject.id}>
                 {subject.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Grade *
+          </label>
+          <select
+            value={formData.gradeId === 0 ? '' : formData.gradeId}
+            onChange={(e) => setFormData({ ...formData, gradeId: Number(e.target.value) })}
+            required
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">Select a grade</option>
+            {grades.map((grade) => (
+              <option key={grade.id} value={grade.id}>
+                {grade.display_name}
               </option>
             ))}
           </select>
