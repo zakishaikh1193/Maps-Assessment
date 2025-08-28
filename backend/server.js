@@ -21,6 +21,7 @@ import adminRoutes from './routes/admin.js';
 import studentRoutes from './routes/student.js';
 import schoolsRoutes from './routes/schools.js';
 import gradesRoutes from './routes/grades.js';
+import rateLimit from 'express-rate-limit';
 
 // Load environment variables
 dotenv.config();
@@ -39,10 +40,6 @@ app.use(requestLogger);
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Rate limiting
-app.use('/api/auth', authRateLimit);
-app.use('/api', generalRateLimit);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -79,6 +76,8 @@ app.get('/', (req, res) => {
     documentation: 'API documentation coming soon'
   });
 });
+
+app.use('api/auth', authRateLimit);
 
 // Error handling middleware (must be last)
 app.use(notFoundHandler);

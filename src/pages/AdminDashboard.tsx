@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Subject, Question, AdminStats } from '../types';
-import { subjectsAPI, adminAPI } from '../services/api';
+import { Subject, Question, AdminStats, School, Grade } from '../types';
+import { subjectsAPI, adminAPI, schoolsAPI, gradesAPI } from '../services/api';
 import QuestionForm from '../components/QuestionForm';
 import QuestionList from '../components/QuestionList';
 import SubjectForm from '../components/SubjectForm';
 import SubjectList from '../components/SubjectList';
+import SchoolForm from '../components/SchoolForm';
+import SchoolList from '../components/SchoolList';
+import GradeForm from '../components/GradeForm';
+import GradeList from '../components/GradeList';
+import StudentList from '../components/StudentList';
 import AdminStatsCard from '../components/AdminStatsCard';
 import GrowthOverTimeChart from '../components/GrowthOverTimeChart';
 import Navigation from '../components/Navigation';
-import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User, Settings } from 'lucide-react';
+import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User, Settings, Building, GraduationCap } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -20,7 +25,7 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   
   // Growth chart states
-  const [activeTab, setActiveTab] = useState<'questions' | 'growth' | 'subjects'>('questions');
+  const [activeTab, setActiveTab] = useState<'students' | 'questions' | 'growth' | 'subjects' | 'schools' | 'grades'>('students');
   const [students, setStudents] = useState<Array<{id: number, username: string, firstName?: string, lastName?: string}>>([]);
   const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
   const [growthData, setGrowthData] = useState<any>(null);
@@ -30,6 +35,16 @@ const AdminDashboard: React.FC = () => {
   const [showSubjectForm, setShowSubjectForm] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [subjectsLoading, setSubjectsLoading] = useState(false);
+
+  // Schools management states
+  const [showSchoolForm, setShowSchoolForm] = useState(false);
+  const [editingSchool, setEditingSchool] = useState<School | null>(null);
+  const [schoolsLoading, setSchoolsLoading] = useState(false);
+
+  // Grades management states
+  const [showGradeForm, setShowGradeForm] = useState(false);
+  const [editingGrade, setEditingGrade] = useState<Grade | null>(null);
+  const [gradesLoading, setGradesLoading] = useState(false);
 
   useEffect(() => {
     loadInitialData();
@@ -238,10 +253,23 @@ const AdminDashboard: React.FC = () => {
 
         {/* Tab Navigation */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1 mb-8">
-          <div className="flex">
+          <div className="flex flex-wrap">
+            <button
+              onClick={() => setActiveTab('students')}
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'students'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <Users className="h-4 w-4" />
+                <span className="hidden sm:inline">STUDENTS</span>
+              </div>
+            </button>
             <button
               onClick={() => setActiveTab('questions')}
-              className={`flex-1 px-6 py-3 text-sm font-medium rounded-lg transition-colors ${
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'questions'
                   ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -249,12 +277,12 @@ const AdminDashboard: React.FC = () => {
             >
               <div className="flex items-center justify-center space-x-2">
                 <FileQuestion className="h-4 w-4" />
-                <span>QUESTION MANAGEMENT</span>
+                <span className="hidden sm:inline">QUESTIONS</span>
               </div>
             </button>
             <button
               onClick={() => setActiveTab('growth')}
-              className={`flex-1 px-6 py-3 text-sm font-medium rounded-lg transition-colors ${
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'growth'
                   ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -262,12 +290,12 @@ const AdminDashboard: React.FC = () => {
             >
               <div className="flex items-center justify-center space-x-2">
                 <TrendingUp className="h-4 w-4" />
-                <span>STUDENT GROWTH</span>
+                <span className="hidden sm:inline">GROWTH</span>
               </div>
             </button>
             <button
               onClick={() => setActiveTab('subjects')}
-              className={`flex-1 px-6 py-3 text-sm font-medium rounded-lg transition-colors ${
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'subjects'
                   ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -275,7 +303,33 @@ const AdminDashboard: React.FC = () => {
             >
               <div className="flex items-center justify-center space-x-2">
                 <Settings className="h-4 w-4" />
-                <span>SUBJECTS</span>
+                <span className="hidden sm:inline">SUBJECTS</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('schools')}
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'schools'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <Building className="h-4 w-4" />
+                <span className="hidden sm:inline">SCHOOLS</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('grades')}
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'grades'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <GraduationCap className="h-4 w-4" />
+                <span className="hidden sm:inline">GRADES</span>
               </div>
             </button>
           </div>
@@ -462,6 +516,13 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
+        {/* Students Management Tab Content */}
+        {activeTab === 'students' && (
+          <div className="space-y-6">
+            <StudentList />
+          </div>
+        )}
+
         {/* Subjects Management Tab Content */}
         {activeTab === 'subjects' && (
           <div className="space-y-6">
@@ -472,6 +533,20 @@ const AdminDashboard: React.FC = () => {
               onAddNew={handleAddSubject}
               loading={subjectsLoading}
             />
+          </div>
+        )}
+
+        {/* Schools Management Tab Content */}
+        {activeTab === 'schools' && (
+          <div className="space-y-6">
+            <SchoolList />
+          </div>
+        )}
+
+        {/* Grades Management Tab Content */}
+        {activeTab === 'grades' && (
+          <div className="space-y-6">
+            <GradeList />
           </div>
         )}
 

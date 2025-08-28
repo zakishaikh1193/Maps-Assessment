@@ -4,7 +4,7 @@ import { executeQuery } from '../config/database.js';
 export const getAllGrades = async (req, res) => {
   try {
     const grades = await executeQuery(
-      'SELECT id, name, display_name, grade_level, description, is_active, created_at FROM grades ORDER BY grade_level'
+      'SELECT id, name, display_name, grade_level, description, is_active, created_at FROM grades ORDER BY COALESCE(grade_level, 999), name'
     );
 
     res.json(grades);
@@ -62,23 +62,14 @@ export const createGrade = async (req, res) => {
       });
     }
 
-    // Check if grade level already exists
-    const existingGradesByLevel = await executeQuery(
-      'SELECT id FROM grades WHERE grade_level = ?',
-      [grade_level]
-    );
-
-    if (existingGradesByLevel.length > 0) {
-      return res.status(409).json({
-        error: 'Grade level already exists',
-        code: 'GRADE_LEVEL_EXISTS'
-      });
-    }
+    // Use display_name as name if not provided
+    const finalDisplayName = display_name || name;
+    const finalGradeLevel = grade_level || null;
 
     // Insert new grade
     const result = await executeQuery(
       'INSERT INTO grades (name, display_name, grade_level, description, is_active) VALUES (?, ?, ?, ?, ?)',
-      [name, display_name, grade_level, description, is_active]
+      [name, finalDisplayName, finalGradeLevel, description, is_active]
     );
 
     // Get the created grade
@@ -133,23 +124,14 @@ export const updateGrade = async (req, res) => {
       });
     }
 
-    // Check if grade level is already taken by another grade
-    const levelCheck = await executeQuery(
-      'SELECT id FROM grades WHERE grade_level = ? AND id != ?',
-      [grade_level, id]
-    );
-
-    if (levelCheck.length > 0) {
-      return res.status(409).json({
-        error: 'Grade level already exists',
-        code: 'GRADE_LEVEL_EXISTS'
-      });
-    }
+    // Use display_name as name if not provided
+    const finalDisplayName = display_name || name;
+    const finalGradeLevel = grade_level || null;
 
     // Update grade
     await executeQuery(
       'UPDATE grades SET name = ?, display_name = ?, grade_level = ?, description = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [name, display_name, grade_level, description, is_active, id]
+      [name, finalDisplayName, finalGradeLevel, description, is_active, id]
     );
 
     // Get updated grade
@@ -351,7 +333,7 @@ export const getGradeStats = async (req, res) => {
 export const getActiveGrades = async (req, res) => {
   try {
     const grades = await executeQuery(
-      'SELECT id, name, display_name, grade_level, description FROM grades WHERE is_active = 1 ORDER BY grade_level'
+      'SELECT id, name, display_name, grade_level, description FROM grades WHERE is_active = 1 ORDER BY COALESCE(grade_level, 999), name'
     );
 
     res.json(grades);

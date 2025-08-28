@@ -236,7 +236,7 @@ export const getSchoolStats = async (req, res) => {
       LEFT JOIN grades g ON u.grade_id = g.id
       WHERE s.id = ?
       GROUP BY g.id, g.display_name
-      ORDER BY g.grade_level
+      ORDER BY COALESCE(g.grade_level, 999), g.display_name
     `, [id]);
 
     // Get recent assessments

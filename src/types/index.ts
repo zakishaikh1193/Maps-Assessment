@@ -4,12 +4,40 @@ export interface User {
   role: 'admin' | 'student';
   firstName?: string;
   lastName?: string;
+  school?: {
+    id: number;
+    name: string;
+  };
+  grade?: {
+    id: number;
+    name: string;
+    level: number;
+  };
 }
 
 export interface Subject {
   id: number;
   name: string;
   description?: string;
+}
+
+export interface School {
+  id: number;
+  name: string;
+  address?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  created_at?: string;
+}
+
+export interface Grade {
+  id: number;
+  name: string;
+  display_name: string;
+  grade_level?: number | null;
+  description?: string;
+  is_active: boolean;
+  created_at?: string;
 }
 
 export interface Question {

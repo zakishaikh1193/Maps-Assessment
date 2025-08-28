@@ -1,13 +1,24 @@
 import { executeQuery } from '../config/database.js';
+import bcrypt from 'bcryptjs';
 
 // Get all students
 export const getStudents = async (req, res) => {
   try {
     const students = await executeQuery(`
-      SELECT id, username, first_name, last_name
-      FROM users 
-      WHERE role = 'student'
-      ORDER BY first_name, last_name, username
+      SELECT 
+        u.id, 
+        u.username, 
+        u.first_name, 
+        u.last_name,
+        u.school_id,
+        u.grade_id,
+        s.name as school_name,
+        g.display_name as grade_name
+      FROM users u
+      LEFT JOIN schools s ON u.school_id = s.id
+      LEFT JOIN grades g ON u.grade_id = g.id
+      WHERE u.role = 'student'
+      ORDER BY u.first_name, u.last_name, u.username
     `);
     
     res.json(students);
@@ -703,6 +714,168 @@ export const deleteQuestion = async (req, res) => {
     res.status(500).json({
       error: 'Failed to delete question',
       code: 'DELETE_QUESTION_ERROR'
+    });
+  }
+};
+
+// Create new student (admin only)
+export const createStudent = async (req, res) => {
+  try {
+    const { username, password, firstName, lastName, schoolId, gradeId } = req.body;
+
+    // Check if username already exists
+    const existingUsers = await executeQuery(
+      'SELECT id FROM users WHERE username = ?',
+      [username]
+    );
+
+    if (existingUsers.length > 0) {
+      return res.status(409).json({
+        error: 'Username already exists',
+        code: 'USERNAME_EXISTS'
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Insert new student
+    const result = await executeQuery(
+      'INSERT INTO users (username, password, first_name, last_name, role, school_id, grade_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [username, hashedPassword, firstName, lastName, 'student', schoolId, gradeId]
+    );
+
+    // Get the created student with school and grade info
+    const newStudents = await executeQuery(`
+      SELECT 
+        u.id, u.username, u.first_name, u.last_name, u.role, u.created_at,
+        s.name as school_name, s.id as school_id,
+        g.display_name as grade_name, g.id as grade_id, g.grade_level
+      FROM users u
+      LEFT JOIN schools s ON u.school_id = s.id
+      LEFT JOIN grades g ON u.grade_id = g.id
+      WHERE u.id = ?
+    `, [result.insertId]);
+
+    res.status(201).json({
+      message: 'Student created successfully',
+      student: newStudents[0]
+    });
+
+  } catch (error) {
+    console.error('Error creating student:', error);
+    res.status(500).json({
+      error: 'Failed to create student',
+      code: 'CREATE_STUDENT_ERROR'
+    });
+  }
+};
+
+// Update student (admin only)
+export const updateStudent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { firstName, lastName, schoolId, gradeId, password } = req.body;
+
+    // Check if student exists
+    const existingStudents = await executeQuery(
+      'SELECT id FROM users WHERE id = ? AND role = "student"',
+      [id]
+    );
+
+    if (existingStudents.length === 0) {
+      return res.status(404).json({
+        error: 'Student not found',
+        code: 'STUDENT_NOT_FOUND'
+      });
+    }
+
+    // Build update query
+    let updateQuery = 'UPDATE users SET first_name = ?, last_name = ?, school_id = ?, grade_id = ?';
+    let queryParams = [firstName, lastName, schoolId, gradeId];
+
+    // Add password update if provided
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updateQuery += ', password = ?';
+      queryParams.push(hashedPassword);
+    }
+
+    updateQuery += ' WHERE id = ?';
+    queryParams.push(id);
+
+    // Update student
+    await executeQuery(updateQuery, queryParams);
+
+    // Get updated student with school and grade info
+    const updatedStudents = await executeQuery(`
+      SELECT 
+        u.id, u.username, u.first_name, u.last_name, u.role, u.created_at,
+        s.name as school_name, s.id as school_id,
+        g.display_name as grade_name, g.id as grade_id, g.grade_level
+      FROM users u
+      LEFT JOIN schools s ON u.school_id = s.id
+      LEFT JOIN grades g ON u.grade_id = g.id
+      WHERE u.id = ?
+    `, [id]);
+
+    res.json({
+      message: 'Student updated successfully',
+      student: updatedStudents[0]
+    });
+
+  } catch (error) {
+    console.error('Error updating student:', error);
+    res.status(500).json({
+      error: 'Failed to update student',
+      code: 'UPDATE_STUDENT_ERROR'
+    });
+  }
+};
+
+// Delete student (admin only)
+export const deleteStudent = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if student exists
+    const existingStudents = await executeQuery(
+      'SELECT id FROM users WHERE id = ? AND role = "student"',
+      [id]
+    );
+
+    if (existingStudents.length === 0) {
+      return res.status(404).json({
+        error: 'Student not found',
+        code: 'STUDENT_NOT_FOUND'
+      });
+    }
+
+    // Check if student has assessments
+    const assessments = await executeQuery(
+      'SELECT id FROM assessments WHERE student_id = ? LIMIT 1',
+      [id]
+    );
+
+    if (assessments.length > 0) {
+      return res.status(400).json({
+        error: 'Cannot delete student with existing assessments',
+        code: 'STUDENT_HAS_ASSESSMENTS'
+      });
+    }
+
+    // Delete student
+    await executeQuery('DELETE FROM users WHERE id = ?', [id]);
+
+    res.json({
+      message: 'Student deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting student:', error);
+    res.status(500).json({
+      error: 'Failed to delete student',
+      code: 'DELETE_STUDENT_ERROR'
     });
   }
 };

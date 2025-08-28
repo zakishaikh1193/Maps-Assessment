@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { User, Subject, Question, Assessment, AssessmentResponse, DashboardData, AdminStats } from '../types';
+import { User, Subject, Question, Assessment, AssessmentResponse, DashboardData, AdminStats, School, Grade } from '../types';
 
 // const API_BASE_URL = 'https://map-test.bylinelms.com/api';
 const API_BASE_URL = 'http://localhost:5000/api';
@@ -133,6 +133,75 @@ export const adminAPI = {
   }
 };
 
+export const schoolsAPI = {
+  getAll: async (): Promise<School[]> => {
+    const response = await api.get('/schools');
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<School> => {
+    const response = await api.get(`/schools/${id}`);
+    return response.data;
+  },
+
+  create: async (schoolData: { name: string; address?: string; contact_email?: string; contact_phone?: string }) => {
+    const response = await api.post('/schools', schoolData);
+    return response.data;
+  },
+
+  update: async (id: number, schoolData: { name: string; address?: string; contact_email?: string; contact_phone?: string }) => {
+    const response = await api.put(`/schools/${id}`, schoolData);
+    return response.data;
+  },
+
+  delete: async (id: number) => {
+    const response = await api.delete(`/schools/${id}`);
+    return response.data;
+  },
+
+  getStats: async (id: number) => {
+    const response = await api.get(`/schools/${id}/stats`);
+    return response.data;
+  }
+};
+
+export const gradesAPI = {
+  getAll: async (): Promise<Grade[]> => {
+    const response = await api.get('/grades');
+    return response.data;
+  },
+
+  getActive: async (): Promise<Grade[]> => {
+    const response = await api.get('/grades/active');
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<Grade> => {
+    const response = await api.get(`/grades/${id}`);
+    return response.data;
+  },
+
+  create: async (gradeData: { name: string; display_name: string; grade_level?: number | null; description?: string; is_active?: boolean }) => {
+    const response = await api.post('/grades', gradeData);
+    return response.data;
+  },
+
+  update: async (id: number, gradeData: { name: string; display_name: string; grade_level?: number | null; description?: string; is_active?: boolean }) => {
+    const response = await api.put(`/grades/${id}`, gradeData);
+    return response.data;
+  },
+
+  delete: async (id: number) => {
+    const response = await api.delete(`/grades/${id}`);
+    return response.data;
+  },
+
+  getStats: async (id: number) => {
+    const response = await api.get(`/grades/${id}/stats`);
+    return response.data;
+  }
+};
+
 export const studentAPI = {
   startAssessment: async (subjectId: number, period: 'Fall' | 'Winter' | 'Spring') => {
     const response = await api.post('/student/assessments/start', { subjectId, period });
@@ -165,6 +234,47 @@ export const studentAPI = {
 
   getGrowthOverTime: async (subjectId: number) => {
     const response = await api.get(`/student/assessments/growth/${subjectId}`);
+    return response.data;
+  }
+};
+
+// Students API (Admin)
+export const studentsAPI = {
+  getAll: async () => {
+    const response = await api.get('/admin/students');
+    return response.data;
+  },
+
+  create: async (studentData: { 
+    username: string; 
+    password: string; 
+    firstName: string; 
+    lastName: string; 
+    schoolId: number; 
+    gradeId: number; 
+  }) => {
+    const response = await api.post('/admin/students', studentData);
+    return response.data;
+  },
+
+  update: async (id: number, studentData: { 
+    firstName: string; 
+    lastName: string; 
+    schoolId: number; 
+    gradeId: number; 
+    password?: string; 
+  }) => {
+    const response = await api.put(`/admin/students/${id}`, studentData);
+    return response.data;
+  },
+
+  delete: async (id: number) => {
+    const response = await api.delete(`/admin/students/${id}`);
+    return response.data;
+  },
+
+  getGrowth: async (studentId: number, subjectId: number) => {
+    const response = await api.get(`/admin/students/${studentId}/growth/${subjectId}`);
     return response.data;
   }
 };

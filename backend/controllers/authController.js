@@ -62,7 +62,7 @@ export const login = async (req, res) => {
       grade: user.grade_name ? {
         id: user.grade_id,
         name: user.grade_name,
-        level: user.grade_level
+        level: user.grade_level || null
       } : null
     };
 
@@ -139,11 +139,11 @@ export const register = async (req, res) => {
         id: newUser.school_id,
         name: newUser.school_name
       } : null,
-      grade: newUser.grade_name ? {
-        id: newUser.grade_id,
-        name: newUser.grade_name,
-        level: newUser.grade_level
-      } : null
+              grade: newUser.grade_name ? {
+          id: newUser.grade_id,
+          name: newUser.grade_name,
+          level: newUser.grade_level || null
+        } : null
     };
 
     // Generate token
@@ -199,7 +199,7 @@ export const register = async (req, res) => {
         grade: user.grade_name ? {
           id: user.grade_id,
           name: user.grade_name,
-          level: user.grade_level
+          level: user.grade_level || null
         } : null
       };
       

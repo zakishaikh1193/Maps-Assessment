@@ -246,3 +246,37 @@ export const validateBulkQuestions = [
   
   handleValidationErrors
 ];
+
+// Student creation validation
+export const validateStudent = [
+  body('username')
+    .trim()
+    .isLength({ min: 3, max: 50 })
+    .withMessage('Username must be between 3 and 50 characters')
+    .matches(/^[a-zA-Z0-9_]+$/)
+    .withMessage('Username can only contain letters, numbers, and underscores'),
+  
+  body('password')
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters long'),
+  
+  body('firstName')
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('First name must be between 1 and 100 characters'),
+  
+  body('lastName')
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Last name must be between 1 and 100 characters'),
+  
+  body('schoolId')
+    .isInt({ min: 1 })
+    .withMessage('School ID must be a positive integer'),
+  
+  body('gradeId')
+    .isInt({ min: 1 })
+    .withMessage('Grade ID must be a positive integer'),
+  
+  handleValidationErrors
+];
