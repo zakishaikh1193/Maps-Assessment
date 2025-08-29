@@ -144,8 +144,11 @@ export interface PeriodDistribution {
 
 export interface GrowthOverTimeData {
   subjectName: string;
+  schoolName?: string;
+  gradeName?: string;
   studentScores: GrowthDataPoint[];
   classAverages: ClassAverageDataPoint[];
+  districtAverages?: ClassAverageDataPoint[];
   periodDistributions: PeriodDistribution[];
   totalAssessments: number;
 }

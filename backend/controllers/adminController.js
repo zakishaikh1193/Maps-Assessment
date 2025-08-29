@@ -120,6 +120,28 @@ export const getStudentGrowth = async (req, res) => {
         END ASC
     `, [subjectId, school_id, grade_id]);
 
+    // Get district averages for each period (filtered by grade only, across all schools)
+    const districtAverages = await executeQuery(`
+      SELECT 
+        CONCAT(a.assessment_period, ' ', a.year) as period,
+        a.year,
+        a.assessment_period,
+        AVG(a.rit_score) as averageRITScore,
+        COUNT(DISTINCT a.student_id) as studentCount
+      FROM assessments a
+      JOIN users u ON a.student_id = u.id
+      WHERE a.subject_id = ? 
+      AND a.rit_score IS NOT NULL
+      AND u.grade_id = ?
+      GROUP BY a.assessment_period, a.year
+      ORDER BY a.year ASC, 
+        CASE a.assessment_period 
+          WHEN 'Fall' THEN 1 
+          WHEN 'Winter' THEN 2 
+          WHEN 'Spring' THEN 3 
+        END ASC
+    `, [subjectId, grade_id]);
+
     // Calculate student distribution by period and RIT score ranges
     const periodDistributions = await executeQuery(`
       SELECT 
@@ -173,6 +195,13 @@ export const getStudentGrowth = async (req, res) => {
         dateTaken: score.date_taken
       })),
       classAverages: classAverages.map(avg => ({
+        period: avg.period,
+        year: avg.year,
+        assessmentPeriod: avg.assessment_period,
+        averageRITScore: Math.round(avg.averageRITScore),
+        studentCount: avg.studentCount
+      })),
+      districtAverages: districtAverages.map(avg => ({
         period: avg.period,
         year: avg.year,
         assessmentPeriod: avg.assessment_period,

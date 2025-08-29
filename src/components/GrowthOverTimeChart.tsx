@@ -22,6 +22,7 @@ const GrowthOverTimeChart: React.FC<GrowthOverTimeChartProps> = ({ data }) => {
   const chartData = data.classAverages.map(classAvg => {
     const studentScore = data.studentScores.find(s => s.period === classAvg.period);
     const distribution = data.periodDistributions.find(d => d.period === classAvg.period);
+    const districtAvg = data.districtAverages?.find(d => d.period === classAvg.period);
 
     return {
       period: classAvg.period,
@@ -30,6 +31,7 @@ const GrowthOverTimeChart: React.FC<GrowthOverTimeChartProps> = ({ data }) => {
       ritScore: studentScore?.ritScore ?? null,
       dateTaken: studentScore?.dateTaken ?? '',
       classAverage: classAvg.averageRITScore,
+      districtAverage: districtAvg?.averageRITScore ?? null,
       studentCount: classAvg.studentCount,
       // distribution values for stacked bars (percent of total students)
       red: distribution ? distribution.distributions.red : 0,
@@ -73,6 +75,11 @@ const GrowthOverTimeChart: React.FC<GrowthOverTimeChartProps> = ({ data }) => {
             <p className="text-gray-600">
               Class Average: <span className="font-medium text-gray-600">{dataPoint.classAverage}</span>
               <span className="text-xs text-gray-500 ml-1">({dataPoint.studentCount} students)</span>
+            </p>
+          )}
+          {dataPoint?.districtAverage && (
+            <p className="text-gray-600">
+              District Average: <span className="font-medium text-red-600">{dataPoint.districtAverage}</span>
             </p>
           )}
         </div>
@@ -164,7 +171,7 @@ const GrowthOverTimeChart: React.FC<GrowthOverTimeChartProps> = ({ data }) => {
             />
             <Tooltip content={<CustomTooltip />} />
 
-            {/* Overlay student + class average lines */}
+            {/* Overlay student + class average + district average lines */}
             <Line
               type="monotone"
               dataKey="ritScore"
@@ -182,6 +189,16 @@ const GrowthOverTimeChart: React.FC<GrowthOverTimeChartProps> = ({ data }) => {
               strokeWidth={2}
               strokeDasharray="5 5"
               dot={{ r: 4, fill: "#6b7280", stroke: "white", strokeWidth: 1 }}
+              connectNulls={false}
+            />
+            <Line
+              type="monotone"
+              dataKey="districtAverage"
+              yAxisId={1}
+              stroke="#dc2626"
+              strokeWidth={2}
+              strokeDasharray="3 3"
+              dot={{ r: 4, fill: "#dc2626", stroke: "white", strokeWidth: 1 }}
               connectNulls={false}
             />
 
@@ -211,6 +228,10 @@ const GrowthOverTimeChart: React.FC<GrowthOverTimeChartProps> = ({ data }) => {
           <div className="flex items-center space-x-2">
             <div className="w-4 h-1 bg-gray-500 border-dashed border border-gray-500"></div>
             <span className="text-sm text-gray-600">Class Average</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-1 bg-red-600 border border-red-600" style={{ borderStyle: 'dashed' }}></div>
+            <span className="text-sm text-gray-600">District Average</span>
           </div>
         </div>
 
