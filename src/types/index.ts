@@ -204,3 +204,30 @@ export interface AdminStats {
     question_count: number;
   }>;
 }
+
+export interface Competency {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  strong_description: string;
+  neutral_description: string;
+  growth_description: string;
+  strong_threshold: number;
+  neutral_threshold: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CompetencyStats {
+  id: number;
+  code: string;
+  name: string;
+  questions_linked: number;
+  students_assessed: number;
+  average_score: number;
+  strong_count: number;
+  neutral_count: number;
+  growth_count: number;
+}

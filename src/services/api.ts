@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { User, Subject, Question, Assessment, AssessmentResponse, DashboardData, AdminStats, School, Grade, AssessmentConfiguration } from '../types';
+import { User, Subject, Question, Assessment, AssessmentResponse, DashboardData, AdminStats, School, Grade, AssessmentConfiguration, Competency, CompetencyStats } from '../types';
 
 // const API_BASE_URL = 'https://map-test.bylinelms.com/api';
 const API_BASE_URL = 'http://localhost:5000/api';
@@ -317,6 +317,20 @@ export const studentsAPI = {
     const response = await api.get(`/admin/students/${studentId}/growth/${subjectId}`);
     return response.data;
   }
+};
+
+// Competencies API
+export const competenciesAPI = {
+  getAll: () => api.get<Competency[]>('/admin/competencies').then(res => res.data),
+  getActive: () => api.get<Competency[]>('/admin/competencies/active').then(res => res.data),
+  getById: (id: number) => api.get<Competency>(`/admin/competencies/${id}`).then(res => res.data),
+  create: (data: Omit<Competency, 'id' | 'created_at' | 'updated_at'>) => 
+    api.post<{message: string, competency: Competency}>('/admin/competencies', data).then(res => res.data),
+  update: (id: number, data: Partial<Competency>) => 
+    api.put<{message: string, competency: Competency}>(`/admin/competencies/${id}`, data).then(res => res.data),
+  delete: (id: number) => api.delete<{message: string}>(`/admin/competencies/${id}`).then(res => res.data),
+  getStats: () => api.get<CompetencyStats[]>('/admin/competencies/stats').then(res => res.data),
+  getQuestions: (id: number) => api.get(`/admin/competencies/${id}/questions`).then(res => res.data)
 };
 
 export default api;

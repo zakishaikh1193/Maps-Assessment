@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Subject, Question, AdminStats, School, Grade } from '../types';
+import { Subject, Question, AdminStats, School, Grade, Competency } from '../types';
 import { subjectsAPI, adminAPI, schoolsAPI, gradesAPI } from '../services/api';
 import QuestionForm from '../components/QuestionForm';
 import QuestionList from '../components/QuestionList';
@@ -14,7 +14,9 @@ import AdminStatsCard from '../components/AdminStatsCard';
 import GrowthOverTimeChart from '../components/GrowthOverTimeChart';
 import Navigation from '../components/Navigation';
 import AssessmentConfigList from '../components/AssessmentConfigList';
-import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User, Settings, Building, GraduationCap, Clock } from 'lucide-react';
+import CompetencyList from '../components/CompetencyList';
+import CompetencyForm from '../components/CompetencyForm';
+import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User, Settings, Building, GraduationCap, Clock, Target } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -26,7 +28,7 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   
   // Growth chart states
-  const [activeTab, setActiveTab] = useState<'students' | 'questions' | 'growth' | 'subjects' | 'schools' | 'grades' | 'configs'>('students');
+  const [activeTab, setActiveTab] = useState<'students' | 'questions' | 'growth' | 'subjects' | 'schools' | 'grades' | 'configs' | 'competencies'>('students');
   const [students, setStudents] = useState<Array<{id: number, username: string, firstName?: string, lastName?: string}>>([]);
   const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
   const [growthData, setGrowthData] = useState<any>(null);
@@ -46,6 +48,11 @@ const AdminDashboard: React.FC = () => {
   const [showGradeForm, setShowGradeForm] = useState(false);
   const [editingGrade, setEditingGrade] = useState<Grade | null>(null);
   const [gradesLoading, setGradesLoading] = useState(false);
+
+  // Competencies management states
+  const [showCompetencyForm, setShowCompetencyForm] = useState(false);
+  const [editingCompetency, setEditingCompetency] = useState<Competency | null>(null);
+  const [competencyRefreshTrigger, setCompetencyRefreshTrigger] = useState(0);
 
   useEffect(() => {
     loadInitialData();
@@ -346,6 +353,19 @@ const AdminDashboard: React.FC = () => {
                 <span className="hidden sm:inline">CONFIGS</span>
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab('competencies')}
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'competencies'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <Target className="h-4 w-4" />
+                <span className="hidden sm:inline">COMPETENCIES</span>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -570,6 +590,21 @@ const AdminDashboard: React.FC = () => {
             <AssessmentConfigList />
           </div>
         )}
+        {activeTab === 'competencies' && (
+          <div className="space-y-6">
+            <CompetencyList
+              onEditCompetency={(competency) => {
+                setEditingCompetency(competency);
+                setShowCompetencyForm(true);
+              }}
+              onAddCompetency={() => {
+                setEditingCompetency(null);
+                setShowCompetencyForm(true);
+              }}
+              refreshTrigger={competencyRefreshTrigger}
+            />
+          </div>
+        )}
 
         {/* Subject Form Modal */}
         {showSubjectForm && (
@@ -598,6 +633,27 @@ const AdminDashboard: React.FC = () => {
               />
             </div>
           </div>
+        )}
+
+        {/* Competency Form Modal */}
+        {showCompetencyForm && (
+          <CompetencyForm
+            editingCompetency={editingCompetency}
+            onCompetencyCreated={() => {
+              setShowCompetencyForm(false);
+              setEditingCompetency(null);
+              setCompetencyRefreshTrigger(prev => prev + 1);
+            }}
+            onCompetencyUpdated={() => {
+              setShowCompetencyForm(false);
+              setEditingCompetency(null);
+              setCompetencyRefreshTrigger(prev => prev + 1);
+            }}
+            onCancel={() => {
+              setShowCompetencyForm(false);
+              setEditingCompetency(null);
+            }}
+          />
         )}
       </div>
     </div>
