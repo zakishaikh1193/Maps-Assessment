@@ -72,12 +72,16 @@ const AssessmentPage: React.FC = () => {
       setCurrentQuestion(response.question);
       setStartTime(Date.now());
       
-      // Extract time limit and question count from the first question
+      // Extract time limit and question count from the response
       if (response.question) {
         setTotalQuestions(response.question.totalQuestions);
         setCurrentQuestionNumber(response.question.questionNumber);
-        // Time limit will be set from backend configuration
-        // For now, we'll use a default or extract from response if available
+      }
+      
+      // Set time limit from backend configuration
+      if (response.timeLimitMinutes) {
+        setTimeLimit(response.timeLimitMinutes);
+        setTimeRemaining(response.timeLimitMinutes * 60); // Convert to seconds
       }
     } catch (error: any) {
       console.error('Failed to start assessment:', error);

@@ -117,30 +117,27 @@ const findClosestQuestion = async (currentDifficulty, isCorrect, subjectId, asse
       `, [subjectId, assessmentId, currentDifficulty]);
     }
   } else {
-    // If no assessmentId (first question), just get any question
+    // If no assessmentId (first question), find the closest question to the starting difficulty
+    // For high RIT scores, we want to start with questions at or near that level
     questions = await executeQuery(`
       SELECT id, question_text, options, difficulty_level 
       FROM questions 
       WHERE subject_id = ? 
-      AND difficulty_level BETWEEN ? AND ?
+      AND (grade_id = ? OR grade_id IS NULL)
       ORDER BY ABS(difficulty_level - ?) ASC, RAND()
       LIMIT 1
-    `, [
-      subjectId,
-      currentDifficulty - 10,
-      currentDifficulty + 10,
-      currentDifficulty
-    ]);
+    `, [subjectId, studentGradeId, currentDifficulty]);
 
-    // If no questions in range, expand search
+    // If no questions found, fall back to any available question
     if (questions.length === 0) {
       questions = await executeQuery(`
         SELECT id, question_text, options, difficulty_level 
         FROM questions 
         WHERE subject_id = ?
-        ORDER BY ABS(difficulty_level - ?) ASC, RAND()
+        AND (grade_id = ? OR grade_id IS NULL)
+        ORDER BY difficulty_level DESC
         LIMIT 1
-      `, [subjectId, currentDifficulty]);
+      `, [subjectId, studentGradeId]);
     }
   }
 
@@ -221,7 +218,9 @@ export const startAssessment = async (req, res) => {
     }
 
     // Get first question based on adaptive starting difficulty
+    console.log(`Finding first question with starting difficulty: ${startingDifficulty}`);
     const firstQuestion = await findClosestQuestion(startingDifficulty, null, subjectId, null, studentGradeId);
+    console.log(`First question found with difficulty: ${firstQuestion?.difficulty_level}`);
 
     if (!firstQuestion) {
       return res.status(404).json({
@@ -256,6 +255,7 @@ export const startAssessment = async (req, res) => {
 
     res.json({
       assessmentId: result.insertId,
+      timeLimitMinutes: timeLimitMinutes,
       question: {
         id: firstQuestion.id,
         text: firstQuestion.question_text,
@@ -271,7 +271,7 @@ export const startAssessment = async (req, res) => {
           return firstQuestion.options;
         })(),
         questionNumber: 1,
-        totalQuestions: 10
+        totalQuestions: questionCount
       }
     });
   } catch (error) {
