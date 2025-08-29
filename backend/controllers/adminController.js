@@ -36,6 +36,24 @@ export const getStudentGrowth = async (req, res) => {
   try {
     const { studentId, subjectId } = req.params;
     
+    // Get student's school and grade information
+    const studentInfo = await executeQuery(`
+      SELECT u.school_id, u.grade_id, s.name as school_name, g.name as grade_name
+      FROM users u
+      JOIN schools s ON u.school_id = s.id
+      JOIN grades g ON u.grade_id = g.id
+      WHERE u.id = ?
+    `, [studentId]);
+
+    if (studentInfo.length === 0) {
+      return res.status(404).json({
+        error: 'Student information not found',
+        code: 'STUDENT_NOT_FOUND'
+      });
+    }
+
+    const { school_id, grade_id, school_name, grade_name } = studentInfo[0];
+    
     // Get subject name
     const subjectResult = await executeQuery('SELECT name FROM subjects WHERE id = ?', [subjectId]);
     if (subjectResult.length === 0) {
@@ -64,47 +82,83 @@ export const getStudentGrowth = async (req, res) => {
         END ASC
     `, [studentId, subjectId]);
 
-    // Get class averages for each period
+    // Get class averages for each period (filtered by school and grade)
     const classAverages = await executeQuery(`
       SELECT 
-        CONCAT(assessment_period, ' ', year) as period,
-        year,
-        assessment_period,
-        AVG(rit_score) as averageRITScore,
-        COUNT(*) as studentCount
-      FROM assessments 
-      WHERE subject_id = ? AND rit_score IS NOT NULL
-      GROUP BY assessment_period, year
-      ORDER BY year ASC, 
-        CASE assessment_period 
+        CONCAT(a.assessment_period, ' ', a.year) as period,
+        a.year,
+        a.assessment_period,
+        AVG(a.rit_score) as averageRITScore,
+        COUNT(DISTINCT a.student_id) as studentCount
+      FROM assessments a
+      JOIN users u ON a.student_id = u.id
+      WHERE a.subject_id = ? 
+      AND a.rit_score IS NOT NULL
+      AND u.school_id = ?
+      AND u.grade_id = ?
+      GROUP BY a.assessment_period, a.year
+      ORDER BY a.year ASC, 
+        CASE a.assessment_period 
           WHEN 'Fall' THEN 1 
           WHEN 'Winter' THEN 2 
           WHEN 'Spring' THEN 3 
         END ASC
-    `, [subjectId]);
+    `, [subjectId, school_id, grade_id]);
 
-    // Calculate student distribution by period and RIT score ranges
-    const periodDistributions = await executeQuery(`
+    // Calculate student distribution by period and RIT score ranges (filtered by school and grade)
+    let periodDistributions = await executeQuery(`
       SELECT 
-        assessment_period,
-        year,
-        COUNT(*) as total_students,
-        SUM(CASE WHEN rit_score BETWEEN 100 AND 150 THEN 1 ELSE 0 END) as red_count,
-        SUM(CASE WHEN rit_score BETWEEN 151 AND 200 THEN 1 ELSE 0 END) as orange_count,
-        SUM(CASE WHEN rit_score BETWEEN 201 AND 250 THEN 1 ELSE 0 END) as yellow_count,
-        SUM(CASE WHEN rit_score BETWEEN 251 AND 300 THEN 1 ELSE 0 END) as green_count,
-        SUM(CASE WHEN rit_score BETWEEN 301 AND 350 THEN 1 ELSE 0 END) as blue_count
-      FROM assessments 
-      WHERE subject_id = ? 
-      AND rit_score IS NOT NULL
-      GROUP BY assessment_period, year
-      ORDER BY year ASC, 
-        CASE assessment_period 
+        a.assessment_period,
+        a.year,
+        COUNT(DISTINCT a.student_id) as total_students,
+        SUM(CASE WHEN a.rit_score BETWEEN 100 AND 150 THEN 1 ELSE 0 END) as red_count,
+        SUM(CASE WHEN a.rit_score BETWEEN 151 AND 200 THEN 1 ELSE 0 END) as orange_count,
+        SUM(CASE WHEN a.rit_score BETWEEN 201 AND 250 THEN 1 ELSE 0 END) as yellow_count,
+        SUM(CASE WHEN a.rit_score BETWEEN 251 AND 300 THEN 1 ELSE 0 END) as green_count,
+        SUM(CASE WHEN a.rit_score BETWEEN 301 AND 350 THEN 1 ELSE 0 END) as blue_count
+      FROM assessments a
+      JOIN users u ON a.student_id = u.id
+      WHERE a.subject_id = ? 
+      AND a.rit_score IS NOT NULL
+      AND u.school_id = ?
+      AND u.grade_id = ?
+      GROUP BY a.assessment_period, a.year
+      ORDER BY a.year ASC, 
+        CASE a.assessment_period 
           WHEN 'Fall' THEN 1 
           WHEN 'Winter' THEN 2 
           WHEN 'Spring' THEN 3 
         END ASC
-    `, [subjectId]);
+    `, [subjectId, school_id, grade_id]);
+
+    // Check if we have sufficient data for school/grade filtering
+    const totalStudentsInFilteredData = periodDistributions.reduce((sum, period) => sum + period.total_students, 0);
+    
+    // If we have very few students in the filtered data, fall back to global data
+    if (totalStudentsInFilteredData < 10) {
+      console.log(`Insufficient data for school ${school_id}, grade ${grade_id}. Using global data.`);
+      periodDistributions = await executeQuery(`
+        SELECT 
+          a.assessment_period,
+          a.year,
+          COUNT(DISTINCT a.student_id) as total_students,
+          SUM(CASE WHEN a.rit_score BETWEEN 100 AND 150 THEN 1 ELSE 0 END) as red_count,
+          SUM(CASE WHEN a.rit_score BETWEEN 151 AND 200 THEN 1 ELSE 0 END) as orange_count,
+          SUM(CASE WHEN a.rit_score BETWEEN 201 AND 250 THEN 1 ELSE 0 END) as yellow_count,
+          SUM(CASE WHEN a.rit_score BETWEEN 251 AND 300 THEN 1 ELSE 0 END) as green_count,
+          SUM(CASE WHEN a.rit_score BETWEEN 301 AND 350 THEN 1 ELSE 0 END) as blue_count
+        FROM assessments a
+        WHERE a.subject_id = ? 
+        AND a.rit_score IS NOT NULL
+        GROUP BY a.assessment_period, a.year
+        ORDER BY a.year ASC, 
+          CASE a.assessment_period 
+            WHEN 'Fall' THEN 1 
+            WHEN 'Winter' THEN 2 
+            WHEN 'Spring' THEN 3 
+          END ASC
+      `, [subjectId]);
+    }
 
     // Calculate percentages for each period
     const formattedDistributions = periodDistributions.map(period => ({
@@ -123,6 +177,8 @@ export const getStudentGrowth = async (req, res) => {
 
     res.json({
       subjectName,
+      schoolName: school_name,
+      gradeName: grade_name,
       studentScores: studentScores.map(score => ({
         period: score.period,
         year: score.year,
