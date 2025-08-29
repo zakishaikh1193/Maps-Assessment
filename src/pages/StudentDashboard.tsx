@@ -35,7 +35,7 @@ const StudentDashboard: React.FC = () => {
   const loadDashboardData = async () => {
     try {
       const [subjectsData, assessmentData] = await Promise.all([
-        subjectsAPI.getAll(),
+        studentAPI.getAvailableSubjects(),
         studentAPI.getDashboardData()
       ]);
       setSubjects(subjectsData);
@@ -131,7 +131,7 @@ const StudentDashboard: React.FC = () => {
             </div>
           )}
           <p className="text-gray-600">
-            Track your academic progress and take {currentSeason} assessments
+            Track your academic progress and take {currentSeason} assessments for your grade level
           </p>
         </div>
 
@@ -144,7 +144,7 @@ const StudentDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">{subjects.length}</p>
-                <p className="text-gray-600">Available Subjects</p>
+                <p className="text-gray-600">Available Subjects for Grade {user?.grade?.display_name}</p>
               </div>
             </div>
           </div>

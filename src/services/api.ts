@@ -88,6 +88,7 @@ export const adminAPI = {
     options: string[];
     correctOptionIndex: number;
     difficultyLevel: number;
+    competencies?: Array<{ id: number }>;
   }) => {
     const response = await api.post('/admin/questions', questionData);
     return response.data;
@@ -110,6 +111,7 @@ export const adminAPI = {
     options: string[];
     correctOptionIndex: number;
     difficultyLevel: number;
+    competencies?: Array<{ id: number }>;
   }) => {
     const response = await api.put(`/admin/questions/${questionId}`, questionData);
     return response.data;
@@ -259,6 +261,11 @@ export const studentAPI = {
 
   getDashboardData: async (): Promise<DashboardData[]> => {
     const response = await api.get('/student/assessments/dashboard');
+    return response.data;
+  },
+
+  getAvailableSubjects: async (): Promise<Subject[]> => {
+    const response = await api.get('/student/subjects/available');
     return response.data;
   },
 

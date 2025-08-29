@@ -305,7 +305,7 @@ export const createBulkQuestions = async (req, res) => {
 // Create new question
 export const createQuestion = async (req, res) => {
   try {
-    const { subjectId, gradeId, questionText, options, correctOptionIndex, difficultyLevel } = req.body;
+    const { subjectId, gradeId, questionText, options, correctOptionIndex, difficultyLevel, competencies } = req.body;
 
     // Handle options format - convert string to array if needed
     let optionsArray = options;
@@ -365,6 +365,16 @@ export const createQuestion = async (req, res) => {
       'INSERT INTO questions (subject_id, grade_id, question_text, options, correct_option_index, difficulty_level, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [subjectId, gradeId, questionText, JSON.stringify(optionsArray), correctOptionIndex, difficultyLevel, req.user.id]
     );
+
+    // Insert competency relationships if provided
+    if (competencies && Array.isArray(competencies) && competencies.length > 0) {
+      for (const comp of competencies) {
+        await executeQuery(
+          'INSERT INTO questions_competencies (question_id, competency_id, weight) VALUES (?, ?, ?)',
+          [result.insertId, comp.id, 100]
+        );
+      }
+    }
 
     // Get the created question
     const questions = await executeQuery(
@@ -449,6 +459,19 @@ export const getQuestionById = async (req, res) => {
       }
     }
 
+    // Get competency relationships
+    const competencyRelationships = await executeQuery(`
+      SELECT 
+        c.id,
+        c.code,
+        c.name,
+        qc.weight
+      FROM questions_competencies qc
+      JOIN competencies c ON qc.competency_id = c.id
+      WHERE qc.question_id = ?
+      ORDER BY qc.weight DESC
+    `, [id]);
+
     res.json({
       id: question.id,
       subjectId: question.subject_id,
@@ -457,6 +480,7 @@ export const getQuestionById = async (req, res) => {
       options: parsedOptions,
       correctOptionIndex: question.correct_option_index,
       difficultyLevel: question.difficulty_level,
+      competencies: competencyRelationships,
       createdAt: question.created_at,
       createdByUsername: question.created_by_username,
       gradeName: question.grade_name
@@ -555,7 +579,7 @@ export const getQuestionsBySubject = async (req, res) => {
 export const updateQuestion = async (req, res) => {
   try {
     const { id } = req.params;
-    const { subjectId, gradeId, questionText, options, correctOptionIndex, difficultyLevel } = req.body;
+    const { subjectId, gradeId, questionText, options, correctOptionIndex, difficultyLevel, competencies } = req.body;
 
     // Check if question exists
     const questions = await executeQuery(
@@ -628,6 +652,20 @@ export const updateQuestion = async (req, res) => {
       'UPDATE questions SET subject_id = ?, grade_id = ?, question_text = ?, options = ?, correct_option_index = ?, difficulty_level = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [subjectId, gradeId, questionText, JSON.stringify(optionsArray), correctOptionIndex, difficultyLevel, id]
     );
+
+    // Update competency relationships
+    // First, remove existing relationships
+    await executeQuery('DELETE FROM questions_competencies WHERE question_id = ?', [id]);
+    
+    // Then, insert new relationships if provided
+    if (competencies && Array.isArray(competencies) && competencies.length > 0) {
+      for (const comp of competencies) {
+        await executeQuery(
+          'INSERT INTO questions_competencies (question_id, competency_id, weight) VALUES (?, ?, ?)',
+          [id, comp.id, 100]
+        );
+      }
+    }
 
     // Get updated question
     const updatedQuestions = await executeQuery(`

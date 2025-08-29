@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Subject, Question, Grade } from '../types';
-import { adminAPI, gradesAPI } from '../services/api';
-import { AlertCircle, Save, X } from 'lucide-react';
+import { Subject, Question, Grade, Competency } from '../types';
+import { adminAPI, gradesAPI, competenciesAPI } from '../services/api';
+import { AlertCircle, Save, X, Plus, Trash2 } from 'lucide-react';
 
 interface QuestionFormProps {
   subjects: Subject[];
@@ -26,22 +26,28 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
     questionText: '',
     options: ['', '', '', ''],
     correctOptionIndex: 0,
-    difficultyLevel: 200
+    difficultyLevel: 200,
+    competencies: [] as Array<{ id: number; code: string; name: string }>
   });
   const [grades, setGrades] = useState<Grade[]>([]);
+  const [competencies, setCompetencies] = useState<Competency[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fetchGrades = async () => {
+    const fetchData = async () => {
       try {
-        const gradesData = await gradesAPI.getActive();
+        const [gradesData, competenciesData] = await Promise.all([
+          gradesAPI.getActive(),
+          competenciesAPI.getActive()
+        ]);
         setGrades(gradesData);
+        setCompetencies(competenciesData);
       } catch (err) {
-        console.error('Failed to fetch grades:', err);
+        console.error('Failed to fetch data:', err);
       }
     };
-    fetchGrades();
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -61,7 +67,8 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
         questionText: editingQuestion.questionText,
         options: [...editingQuestion.options],
         correctOptionIndex: editingQuestion.correctOptionIndex,
-        difficultyLevel: editingQuestion.difficultyLevel
+        difficultyLevel: editingQuestion.difficultyLevel,
+        competencies: editingQuestion.competencies || []
       });
     } else {
       setFormData({
@@ -70,7 +77,8 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
         questionText: '',
         options: ['', '', '', ''],
         correctOptionIndex: 0,
-        difficultyLevel: 200
+        difficultyLevel: 200,
+        competencies: []
       });
     }
   }, [editingQuestion, selectedSubject]);
@@ -101,7 +109,8 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
           questionText: formData.questionText.trim(),
           options: formData.options.map(opt => opt.trim()),
           correctOptionIndex: formData.correctOptionIndex,
-          difficultyLevel: formData.difficultyLevel
+          difficultyLevel: formData.difficultyLevel,
+          competencies: formData.competencies.length > 0 ? formData.competencies.map(c => ({ id: c.id })) : undefined
         });
         onQuestionUpdated();
       } else {
@@ -111,7 +120,8 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
           questionText: formData.questionText.trim(),
           options: formData.options.map(opt => opt.trim()),
           correctOptionIndex: formData.correctOptionIndex,
-          difficultyLevel: formData.difficultyLevel
+          difficultyLevel: formData.difficultyLevel,
+          competencies: formData.competencies.length > 0 ? formData.competencies.map(c => ({ id: c.id })) : undefined
         });
         onQuestionCreated();
       }
@@ -257,6 +267,77 @@ const QuestionForm: React.FC<QuestionFormProps> = ({
             <span>200 (Medium)</span>
             <span>350 (Hard)</span>
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Competencies
+          </label>
+          <div className="space-y-3">
+            {formData.competencies.map((comp, index) => (
+              <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-gray-900">
+                    {comp.code} - {comp.name}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newCompetencies = formData.competencies.filter((_, i) => i !== index);
+                    setFormData({ ...formData, competencies: newCompetencies });
+                  }}
+                  className="p-1 text-red-600 hover:text-red-800 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            
+            <div className="flex items-center space-x-3">
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const competencyId = Number(e.target.value);
+                    const competency = competencies.find(c => c.id === competencyId);
+                    if (competency && !formData.competencies.find(c => c.id === competencyId)) {
+                      const newCompetency = {
+                        id: competency.id,
+                        code: competency.code,
+                        name: competency.name
+                      };
+                      setFormData({
+                        ...formData,
+                        competencies: [...formData.competencies, newCompetency]
+                      });
+                    }
+                    e.target.value = '';
+                  }
+                }}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Add a competency</option>
+                {competencies
+                  .filter(comp => !formData.competencies.find(c => c.id === comp.id))
+                  .map((competency) => (
+                    <option key={competency.id} value={competency.id}>
+                      {competency.code} - {competency.name}
+                    </option>
+                  ))}
+              </select>
+              <button
+                type="button"
+                className="p-2 text-blue-600 hover:text-blue-800 transition-colors"
+                title="Add competency"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <p className="mt-1 text-sm text-gray-600">
+            Link this question to specific competencies (optional)
+          </p>
         </div>
 
         <div className="flex justify-end space-x-3 pt-4">

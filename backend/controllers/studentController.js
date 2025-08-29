@@ -360,7 +360,7 @@ export const submitAnswer = async (req, res) => {
     // Check time limit
     const elapsedMinutes = Math.round((Date.now() - session.startTime) / 60000);
     if (elapsedMinutes >= session.timeLimitMinutes) {
-      const ritScore = session.highestCorrectDifficulty;
+      const ritScore = question.difficulty_level; // Use last question's difficulty
       const duration = elapsedMinutes;
 
       // Calculate correct answers count
@@ -388,7 +388,7 @@ export const submitAnswer = async (req, res) => {
 
     // Check if assessment is complete (dynamic question count)
     if (session.questionCount >= session.maxQuestions) {
-      const ritScore = session.highestCorrectDifficulty;
+      const ritScore = question.difficulty_level; // Use last question's difficulty
       const duration = Math.round((Date.now() - session.startTime) / 60000); // minutes
 
       // Calculate correct answers count
@@ -418,9 +418,30 @@ export const submitAnswer = async (req, res) => {
     const nextQuestion = await findClosestQuestion(question.difficulty_level, isCorrect, session.subjectId, assessmentId, studentGradeId, session.usedQuestions);
 
     if (!nextQuestion) {
-      return res.status(404).json({
-        error: 'No more questions available',
-        code: 'NO_MORE_QUESTIONS'
+      // No more questions available, complete the assessment
+      const ritScore = question.difficulty_level; // Use last question's difficulty
+      const duration = Math.round((Date.now() - session.startTime) / 60000);
+
+      // Calculate correct answers count
+      const correctAnswersResult = await executeQuery(
+        'SELECT COUNT(*) as correct_count FROM assessment_responses WHERE assessment_id = ? AND is_correct = 1',
+        [assessmentId]
+      );
+      const correctAnswers = correctAnswersResult[0].correct_count;
+
+      // Update assessment with RIT score
+      await executeQuery(
+        'UPDATE assessments SET rit_score = ?, correct_answers = ?, duration_minutes = ? WHERE id = ?',
+        [ritScore, correctAnswers, duration, assessmentId]
+      );
+
+      // Clean up session
+      activeSessions.delete(sessionId);
+
+      return res.json({
+        completed: true,
+        assessmentId: assessmentId,
+        message: `Assessment completed! No more questions available. Your RIT score is ${ritScore}`
       });
     }
 
@@ -910,6 +931,48 @@ export const getGrowthOverTime = async (req, res) => {
     res.status(500).json({
       error: 'Failed to fetch growth over time data',
       code: 'FETCH_GROWTH_DATA_ERROR'
+    });
+  }
+};
+
+// Get available subjects for student based on their grade
+export const getAvailableSubjects = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+
+    // Get student's grade
+    const studentGrade = await executeQuery(
+      'SELECT grade_id FROM users WHERE id = ?',
+      [studentId]
+    );
+
+    if (studentGrade.length === 0) {
+      return res.status(404).json({
+        error: 'Student not found',
+        code: 'STUDENT_NOT_FOUND'
+      });
+    }
+
+    const gradeId = studentGrade[0].grade_id;
+
+    // Get subjects that have assessment configurations for this grade
+    const availableSubjects = await executeQuery(`
+      SELECT DISTINCT 
+        s.id,
+        s.name,
+        s.description
+      FROM subjects s
+      JOIN assessment_configurations ac ON s.id = ac.subject_id
+      WHERE ac.grade_id = ?
+      ORDER BY s.name
+    `, [gradeId]);
+
+    res.json(availableSubjects);
+  } catch (error) {
+    console.error('Error fetching available subjects:', error);
+    res.status(500).json({
+      error: 'Failed to fetch available subjects',
+      code: 'FETCH_AVAILABLE_SUBJECTS_ERROR'
     });
   }
 };

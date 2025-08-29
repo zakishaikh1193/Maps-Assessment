@@ -223,7 +223,7 @@ const CompetencyForm: React.FC<CompetencyFormProps> = ({
                 rows={3}
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">Shown when student score ≥ neutral threshold but strong threshold</p>
+              <p className="text-xs text-gray-500 mt-1">Shown when student score ≥ neutral threshold but less than strong threshold</p>
             </div>
 
             <div>
@@ -238,7 +238,7 @@ const CompetencyForm: React.FC<CompetencyFormProps> = ({
                 rows={3}
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">Shown when student score  neutral threshold</p>
+              <p className="text-xs text-gray-500 mt-1">Shown when student score less than neutral threshold</p>
             </div>
           </div>
 

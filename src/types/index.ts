@@ -53,6 +53,11 @@ export interface Question {
   createdAt?: string;
   createdByUsername?: string;
   gradeName?: string;
+  competencies?: Array<{
+    id: number;
+    code: string;
+    name: string;
+  }>;
 }
 
 export interface Assessment {

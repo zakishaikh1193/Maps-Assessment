@@ -6,7 +6,8 @@ import {
   getDashboardData,
   getAssessmentResults,
   getGrowthOverTime,
-  getLatestAssessmentDetails
+  getLatestAssessmentDetails,
+  getAvailableSubjects
 } from '../controllers/studentController.js';
 import { authenticateToken, studentOnly } from '../middleware/auth.js';
 import { validateId, validateAssessmentId, validateSubjectId, validateAssessmentStart, validateAnswerSubmission } from '../middleware/validation.js';
@@ -20,6 +21,9 @@ router.use(studentOnly);
 // Assessment operations
 router.post('/assessments/start', validateAssessmentStart, startAssessment);
 router.post('/assessments/answer', validateAnswerSubmission, submitAnswer);
+
+// Available subjects
+router.get('/subjects/available', getAvailableSubjects);
 
 // Results
 router.get('/assessments/results/:subjectId', validateId, getResultsBySubject);
