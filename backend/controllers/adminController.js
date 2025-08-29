@@ -1077,3 +1077,550 @@ export const getStudentsBySchoolAndGrade = async (req, res) => {
     });
   }
 };
+
+// Performance Analytics Functions
+export const getSubjectPerformanceDashboard = async (req, res) => {
+  try {
+    const { schoolId, gradeId, year } = req.query;
+    
+    let whereClause = 'WHERE a.rit_score IS NOT NULL';
+    let params = [];
+    
+    if (schoolId) {
+      whereClause += ' AND u.school_id = ?';
+      params.push(schoolId);
+    }
+    if (gradeId) {
+      whereClause += ' AND u.grade_id = ?';
+      params.push(gradeId);
+    }
+    if (year) {
+      whereClause += ' AND a.year = ?';
+      params.push(year);
+    }
+
+    // Get average RIT scores by subject
+    const subjectPerformance = await executeQuery(`
+      SELECT 
+        s.id as subject_id,
+        s.name as subject_name,
+        AVG(a.rit_score) as average_rit_score,
+        COUNT(DISTINCT a.student_id) as student_count,
+        MIN(a.rit_score) as min_score,
+        MAX(a.rit_score) as max_score,
+        STDDEV(a.rit_score) as standard_deviation
+      FROM assessments a
+      JOIN users u ON a.student_id = u.id
+      JOIN subjects s ON a.subject_id = s.id
+      ${whereClause}
+      GROUP BY s.id, s.name
+      ORDER BY average_rit_score DESC
+    `, params);
+
+    // Get growth rates (Fall to Spring) by subject
+    const growthRates = await executeQuery(`
+      SELECT 
+        s.id as subject_id,
+        s.name as subject_name,
+        AVG(CASE WHEN a.assessment_period = 'Fall' THEN a.rit_score END) as fall_avg,
+        AVG(CASE WHEN a.assessment_period = 'Winter' THEN a.rit_score END) as winter_avg,
+        AVG(CASE WHEN a.assessment_period = 'Spring' THEN a.rit_score END) as spring_avg,
+        COUNT(DISTINCT a.student_id) as student_count
+      FROM assessments a
+      JOIN users u ON a.student_id = u.id
+      JOIN subjects s ON a.subject_id = s.id
+      ${whereClause}
+      GROUP BY s.id, s.name
+      HAVING fall_avg IS NOT NULL AND spring_avg IS NOT NULL
+      ORDER BY (spring_avg - fall_avg) DESC
+    `, params);
+
+    // Get year-over-year trends
+    const yearTrends = await executeQuery(`
+      SELECT 
+        s.id as subject_id,
+        s.name as subject_name,
+        a.year,
+        AVG(a.rit_score) as average_rit_score,
+        COUNT(DISTINCT a.student_id) as student_count
+      FROM assessments a
+      JOIN users u ON a.student_id = u.id
+      JOIN subjects s ON a.subject_id = s.id
+      ${whereClause}
+      GROUP BY s.id, s.name, a.year
+      ORDER BY s.name, a.year
+    `, params);
+
+    res.json({
+      subjectPerformance,
+      growthRates,
+      yearTrends
+    });
+  } catch (error) {
+    console.error('Error in getSubjectPerformanceDashboard:', error);
+    res.status(500).json({ error: 'Failed to fetch subject performance data' });
+  }
+};
+
+export const getAchievementGapAnalysis = async (req, res) => {
+  try {
+    const { schoolId, gradeId, year } = req.query;
+    
+    let whereClause = 'WHERE a.rit_score IS NOT NULL';
+    let params = [];
+    
+    if (schoolId) {
+      whereClause += ' AND u.school_id = ?';
+      params.push(schoolId);
+    }
+    if (gradeId) {
+      whereClause += ' AND u.grade_id = ?';
+      params.push(gradeId);
+    }
+    if (year) {
+      whereClause += ' AND a.year = ?';
+      params.push(year);
+    }
+
+    // Performance by school
+    const schoolGaps = await executeQuery(`
+      SELECT 
+        s.id as school_id,
+        s.name as school_name,
+        AVG(a.rit_score) as average_rit_score,
+        COUNT(DISTINCT a.student_id) as student_count,
+        STDDEV(a.rit_score) as standard_deviation
+      FROM assessments a
+      JOIN users u ON a.student_id = u.id
+      JOIN schools s ON u.school_id = s.id
+      ${whereClause}
+      GROUP BY s.id, s.name
+      ORDER BY average_rit_score DESC
+    `, params);
+
+    // Performance by grade
+    const gradeGaps = await executeQuery(`
+      SELECT 
+        g.id as grade_id,
+        g.display_name as grade_name,
+        AVG(a.rit_score) as average_rit_score,
+        COUNT(DISTINCT a.student_id) as student_count,
+        STDDEV(a.rit_score) as standard_deviation
+      FROM assessments a
+      JOIN users u ON a.student_id = u.id
+      JOIN grades g ON u.grade_id = g.id
+      ${whereClause}
+      GROUP BY g.id, g.display_name
+      ORDER BY average_rit_score DESC
+    `, params);
+
+    // Performance by subject
+    const subjectGaps = await executeQuery(`
+      SELECT 
+        s.id as subject_id,
+        s.name as subject_name,
+        AVG(a.rit_score) as average_rit_score,
+        COUNT(DISTINCT a.student_id) as student_count,
+        STDDEV(a.rit_score) as standard_deviation
+      FROM assessments a
+      JOIN users u ON a.student_id = u.id
+      JOIN subjects s ON a.subject_id = s.id
+      ${whereClause}
+      GROUP BY s.id, s.name
+      ORDER BY average_rit_score DESC
+    `, params);
+
+    res.json({
+      schoolGaps,
+      gradeGaps,
+      subjectGaps
+    });
+  } catch (error) {
+    console.error('Error in getAchievementGapAnalysis:', error);
+    res.status(500).json({ error: 'Failed to fetch achievement gap data' });
+  }
+};
+
+// Competency-Based Analytics Functions
+export const getCompetencyMasteryReport = async (req, res) => {
+  try {
+    const { schoolId, gradeId, subjectId, year } = req.query;
+    
+    let whereClause = 'WHERE scs.final_score IS NOT NULL';
+    let params = [];
+    
+    if (schoolId) {
+      whereClause += ' AND u.school_id = ?';
+      params.push(schoolId);
+    }
+    if (gradeId) {
+      whereClause += ' AND u.grade_id = ?';
+      params.push(gradeId);
+    }
+    if (subjectId) {
+      whereClause += ' AND a.subject_id = ?';
+      params.push(subjectId);
+    }
+    if (year) {
+      whereClause += ' AND a.year = ?';
+      params.push(year);
+    }
+
+    // Competency mastery by competency
+    const competencyMastery = await executeQuery(`
+      SELECT 
+        c.id as competency_id,
+        c.code as competency_code,
+        c.name as competency_name,
+        AVG(scs.final_score) as average_score,
+        COUNT(DISTINCT scs.student_id) as student_count,
+        SUM(CASE WHEN scs.final_score >= 75 THEN 1 ELSE 0 END) as proficient_count,
+        SUM(CASE WHEN scs.final_score < 50 THEN 1 ELSE 0 END) as struggling_count,
+        STDDEV(scs.final_score) as standard_deviation
+      FROM student_competency_scores scs
+      JOIN assessments a ON scs.assessment_id = a.id
+      JOIN users u ON a.student_id = u.id
+      JOIN competencies c ON scs.competency_id = c.id
+      ${whereClause}
+      GROUP BY c.id, c.code, c.name
+      ORDER BY average_score ASC
+    `, params);
+
+    // Competency mastery by school (overall average per school)
+    const schoolCompetencyMastery = await executeQuery(`
+      SELECT 
+        s.id as school_id,
+        s.name as school_name,
+        AVG(scs.final_score) as average_score,
+        COUNT(DISTINCT scs.student_id) as student_count
+      FROM student_competency_scores scs
+      JOIN assessments a ON scs.assessment_id = a.id
+      JOIN users u ON a.student_id = u.id
+      JOIN schools s ON u.school_id = s.id
+      ${whereClause}
+      GROUP BY s.id, s.name
+      ORDER BY s.name
+    `, params);
+
+    // Competency mastery by grade (overall average per grade)
+    const gradeCompetencyMastery = await executeQuery(`
+      SELECT 
+        g.id as grade_id,
+        g.display_name as grade_name,
+        AVG(scs.final_score) as average_score,
+        COUNT(DISTINCT scs.student_id) as student_count
+      FROM student_competency_scores scs
+      JOIN assessments a ON scs.assessment_id = a.id
+      JOIN users u ON a.student_id = u.id
+      JOIN grades g ON u.grade_id = g.id
+      ${whereClause}
+      GROUP BY g.id, g.display_name
+      ORDER BY g.display_name
+    `, params);
+
+    res.json({
+      competencyMastery,
+      schoolCompetencyMastery,
+      gradeCompetencyMastery
+    });
+  } catch (error) {
+    console.error('Error in getCompetencyMasteryReport:', error);
+    res.status(500).json({ error: 'Failed to fetch competency mastery data' });
+  }
+};
+
+export const getCompetencyGrowthTracking = async (req, res) => {
+  try {
+    const { schoolId, gradeId, subjectId, competencyId } = req.query;
+    
+    let whereClause = 'WHERE scs.final_score IS NOT NULL';
+    let params = [];
+    
+    if (schoolId) {
+      whereClause += ' AND u.school_id = ?';
+      params.push(schoolId);
+    }
+    if (gradeId) {
+      whereClause += ' AND u.grade_id = ?';
+      params.push(gradeId);
+    }
+    if (subjectId) {
+      whereClause += ' AND a.subject_id = ?';
+      params.push(subjectId);
+    }
+    if (competencyId) {
+      whereClause += ' AND c.id = ?';
+      params.push(competencyId);
+    }
+
+    // Competency growth over time
+    const competencyGrowth = await executeQuery(`
+      SELECT 
+        c.id as competency_id,
+        c.name as competency_name,
+        a.assessment_period,
+        a.year,
+        AVG(scs.final_score) as average_score,
+        COUNT(DISTINCT scs.student_id) as student_count
+      FROM student_competency_scores scs
+      JOIN assessments a ON scs.assessment_id = a.id
+      JOIN users u ON a.student_id = u.id
+      JOIN competencies c ON scs.competency_id = c.id
+      ${whereClause}
+      GROUP BY c.id, c.name, a.assessment_period, a.year
+      ORDER BY c.name, a.year, 
+        CASE a.assessment_period 
+          WHEN 'Fall' THEN 1 
+          WHEN 'Winter' THEN 2 
+          WHEN 'Spring' THEN 3 
+        END
+    `, params);
+
+    // Competency correlation with overall RIT scores
+    const competencyCorrelation = await executeQuery(`
+      SELECT 
+        c.id as competency_id,
+        c.name as competency_name,
+        AVG(scs.final_score) as avg_competency_score,
+        AVG(a.rit_score) as avg_rit_score,
+        COUNT(DISTINCT scs.student_id) as student_count,
+        CORR(scs.final_score, a.rit_score) as correlation_coefficient
+      FROM student_competency_scores scs
+      JOIN assessments a ON scs.assessment_id = a.id
+      JOIN users u ON a.student_id = u.id
+      JOIN competencies c ON scs.competency_id = c.id
+      ${whereClause}
+      GROUP BY c.id, c.name
+      ORDER BY ABS(correlation_coefficient) DESC
+    `, params);
+
+    res.json({
+      competencyGrowth,
+      competencyCorrelation
+    });
+  } catch (error) {
+    console.error('Error in getCompetencyGrowthTracking:', error);
+    res.status(500).json({ error: 'Failed to fetch competency growth data' });
+  }
+};
+
+// Get student competency scores for admin
+export const getStudentCompetencyScores = async (req, res) => {
+  try {
+    const { studentId, assessmentId } = req.query;
+    
+    if (!studentId && !assessmentId) {
+      return res.status(400).json({
+        error: 'Either studentId or assessmentId is required',
+        code: 'MISSING_PARAMETER'
+      });
+    }
+
+    let query, params;
+
+    if (assessmentId) {
+      // Get competency scores for a specific assessment
+      query = `
+        SELECT 
+          scs.id,
+          scs.competency_id as competencyId,
+          c.code as competencyCode,
+          c.name as competencyName,
+          scs.questions_attempted as questionsAttempted,
+          scs.questions_correct as questionsCorrect,
+          scs.raw_score as rawScore,
+          scs.weighted_score as weightedScore,
+          scs.final_score as finalScore,
+          scs.feedback_type as feedbackType,
+          scs.feedback_text as feedbackText,
+          scs.date_calculated as dateCalculated
+        FROM student_competency_scores scs
+        JOIN competencies c ON scs.competency_id = c.id
+        WHERE scs.assessment_id = ?
+        ORDER BY scs.final_score DESC
+      `;
+      params = [assessmentId];
+    } else {
+      // Get latest competency scores for a student
+      query = `
+        SELECT 
+          scs.id,
+          scs.competency_id as competencyId,
+          c.code as competencyCode,
+          c.name as competencyName,
+          scs.questions_attempted as questionsAttempted,
+          scs.questions_correct as questionsCorrect,
+          scs.raw_score as rawScore,
+          scs.weighted_score as weightedScore,
+          scs.final_score as finalScore,
+          scs.feedback_type as feedbackType,
+          scs.feedback_text as feedbackText,
+          scs.date_calculated as dateCalculated,
+          a.id as assessmentId,
+          a.assessment_period,
+          a.year,
+          s.name as subjectName
+        FROM student_competency_scores scs
+        JOIN competencies c ON scs.competency_id = c.id
+        JOIN assessments a ON scs.assessment_id = a.id
+        JOIN subjects s ON a.subject_id = s.id
+        WHERE scs.student_id = ?
+        ORDER BY a.date_taken DESC, scs.final_score DESC
+      `;
+      params = [studentId];
+    }
+
+    let competencyScores = await executeQuery(query, params);
+
+    console.log('Admin - Competency scores from student_competency_scores:', competencyScores);
+
+    // If no data in student_competency_scores, try assessment_competency_breakdown
+    if (competencyScores.length === 0 && assessmentId) {
+      const breakdownScores = await executeQuery(`
+        SELECT 
+          acb.id,
+          acb.competency_id as competencyId,
+          c.code as competencyCode,
+          c.name as competencyName,
+          acb.questions_attempted as questionsAttempted,
+          acb.questions_correct as questionsCorrect,
+          CASE WHEN acb.questions_attempted > 0 THEN (acb.questions_correct / acb.questions_attempted) * 100 ELSE 0 END as rawScore,
+          CASE WHEN acb.total_weight > 0 THEN (acb.weighted_correct / acb.total_weight) * 100 ELSE 0 END as weightedScore,
+          acb.competency_score as finalScore,
+          CASE 
+            WHEN acb.competency_score >= c.strong_threshold THEN 'strong'
+            WHEN acb.competency_score >= c.neutral_threshold THEN 'neutral'
+            ELSE 'growth'
+          END as feedbackType,
+          CASE 
+            WHEN acb.competency_score >= c.strong_threshold THEN c.strong_description
+            WHEN acb.competency_score >= c.neutral_threshold THEN c.neutral_description
+            ELSE c.growth_description
+          END as feedbackText,
+          acb.created_at as dateCalculated
+        FROM assessment_competency_breakdown acb
+        JOIN competencies c ON acb.competency_id = c.id
+        WHERE acb.assessment_id = ?
+        ORDER BY acb.competency_score DESC
+      `, [assessmentId]);
+
+      competencyScores = breakdownScores;
+    }
+
+    console.log('Admin - Final competency scores being sent:', competencyScores);
+    res.json(competencyScores);
+  } catch (error) {
+    console.error('Error fetching student competency scores:', error);
+    res.status(500).json({
+      error: 'Failed to fetch student competency scores',
+      code: 'FETCH_STUDENT_COMPETENCY_ERROR'
+    });
+  }
+};
+
+// Get student competency growth for admin
+export const getStudentCompetencyGrowth = async (req, res) => {
+  try {
+    const { studentId, subjectId } = req.query;
+    
+    if (!studentId || !subjectId) {
+      return res.status(400).json({
+        error: 'Both studentId and subjectId are required',
+        code: 'MISSING_PARAMETER'
+      });
+    }
+
+    // Get all competency scores for this student and subject
+    const competencyScores = await executeQuery(`
+      SELECT 
+        scs.competency_id as competencyId,
+        c.code as competencyCode,
+        c.name as competencyName,
+        a.id as assessmentId,
+        a.assessment_period as assessmentPeriod,
+        a.year,
+        a.date_taken as dateTaken,
+        scs.final_score as finalScore,
+        scs.feedback_type as feedbackType
+      FROM student_competency_scores scs
+      JOIN competencies c ON scs.competency_id = c.id
+      JOIN assessments a ON scs.assessment_id = a.id
+      WHERE scs.student_id = ? AND scs.subject_id = ?
+      ORDER BY c.name, a.year, 
+        CASE a.assessment_period 
+          WHEN 'Fall' THEN 1 
+          WHEN 'Winter' THEN 2 
+          WHEN 'Spring' THEN 3 
+        END
+    `, [studentId, subjectId]);
+
+    // Group by competency and calculate growth trends
+    const competencyGrowth = [];
+    const competencyGroups = {};
+
+    // Group scores by competency
+    competencyScores.forEach(score => {
+      if (!competencyGroups[score.competencyId]) {
+        competencyGroups[score.competencyId] = {
+          competencyId: score.competencyId,
+          competencyCode: score.competencyCode,
+          competencyName: score.competencyName,
+          scores: []
+        };
+      }
+      competencyGroups[score.competencyId].scores.push({
+        assessmentId: score.assessmentId,
+        assessmentPeriod: score.assessmentPeriod,
+        year: score.year,
+        dateTaken: score.dateTaken,
+        finalScore: score.finalScore,
+        feedbackType: score.feedbackType
+      });
+    });
+
+    // Calculate growth trends and average scores
+    Object.values(competencyGroups).forEach(competency => {
+      const scores = competency.scores;
+      const averageScore = scores.reduce((sum, s) => sum + s.finalScore, 0) / scores.length;
+      
+      // Determine growth trend
+      let growthTrend = 'stable';
+      if (scores.length >= 2) {
+        const firstScore = scores[0].finalScore;
+        const lastScore = scores[scores.length - 1].finalScore;
+        const difference = lastScore - firstScore;
+        
+        if (difference > 5) {
+          growthTrend = 'improving';
+        } else if (difference < -5) {
+          growthTrend = 'declining';
+        }
+      }
+
+      // Generate overall feedback
+      let overallFeedback = '';
+      if (averageScore >= 80) {
+        overallFeedback = `Excellent performance in ${competency.competencyName}. This student consistently demonstrates strong mastery of this skill area.`;
+      } else if (averageScore >= 60) {
+        overallFeedback = `Good performance in ${competency.competencyName}. This student shows solid understanding with room for continued growth.`;
+      } else {
+        overallFeedback = `Focus on improving ${competency.competencyName}. This area offers significant opportunities for development.`;
+      }
+
+      competencyGrowth.push({
+        ...competency,
+        averageScore: Math.round(averageScore * 10) / 10,
+        growthTrend,
+        overallFeedback
+      });
+    });
+
+    res.json(competencyGrowth);
+  } catch (error) {
+    console.error('Error fetching student competency growth:', error);
+    res.status(500).json({
+      error: 'Failed to fetch student competency growth data',
+      code: 'FETCH_STUDENT_COMPETENCY_GROWTH_ERROR'
+    });
+  }
+};

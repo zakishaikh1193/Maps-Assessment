@@ -1051,3 +1051,190 @@ export const getDashboardData = async (req, res) => {
     });
   }
 };
+
+// Get competency scores for a specific assessment
+export const getCompetencyScores = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const assessmentId = parseInt(req.params.assessmentId);
+
+    // Verify the assessment belongs to the student
+    const assessmentCheck = await executeQuery(
+      'SELECT id FROM assessments WHERE id = ? AND student_id = ?',
+      [assessmentId, studentId]
+    );
+
+    if (assessmentCheck.length === 0) {
+      return res.status(404).json({
+        error: 'Assessment not found',
+        code: 'ASSESSMENT_NOT_FOUND'
+      });
+    }
+
+    // Get competency scores for this assessment
+    let competencyScores = await executeQuery(`
+      SELECT 
+        scs.id,
+        scs.competency_id as competencyId,
+        c.code as competencyCode,
+        c.name as competencyName,
+        scs.questions_attempted as questionsAttempted,
+        scs.questions_correct as questionsCorrect,
+        scs.raw_score as rawScore,
+        scs.weighted_score as weightedScore,
+        scs.final_score as finalScore,
+        scs.feedback_type as feedbackType,
+        scs.feedback_text as feedbackText,
+        scs.date_calculated as dateCalculated
+      FROM student_competency_scores scs
+      JOIN competencies c ON scs.competency_id = c.id
+      WHERE scs.assessment_id = ?
+      ORDER BY scs.final_score DESC
+    `, [assessmentId]);
+
+    // If no data in student_competency_scores, try assessment_competency_breakdown
+    if (competencyScores.length === 0) {
+      console.log(`No competency scores found in student_competency_scores for assessment ${assessmentId}, checking assessment_competency_breakdown...`);
+      
+      const breakdownScores = await executeQuery(`
+        SELECT 
+          acb.id,
+          acb.competency_id as competencyId,
+          c.code as competencyCode,
+          c.name as competencyName,
+          acb.questions_attempted as questionsAttempted,
+          acb.questions_correct as questionsCorrect,
+          CASE WHEN acb.questions_attempted > 0 THEN (acb.questions_correct / acb.questions_attempted) * 100 ELSE 0 END as rawScore,
+          CASE WHEN acb.total_weight > 0 THEN (acb.weighted_correct / acb.total_weight) * 100 ELSE 0 END as weightedScore,
+          acb.competency_score as finalScore,
+          CASE 
+            WHEN acb.competency_score >= c.strong_threshold THEN 'strong'
+            WHEN acb.competency_score >= c.neutral_threshold THEN 'neutral'
+            ELSE 'growth'
+          END as feedbackType,
+          CASE 
+            WHEN acb.competency_score >= c.strong_threshold THEN c.strong_description
+            WHEN acb.competency_score >= c.neutral_threshold THEN c.neutral_description
+            ELSE c.growth_description
+          END as feedbackText,
+          acb.created_at as dateCalculated
+        FROM assessment_competency_breakdown acb
+        JOIN competencies c ON acb.competency_id = c.id
+        WHERE acb.assessment_id = ?
+        ORDER BY acb.competency_score DESC
+      `, [assessmentId]);
+
+      console.log(`Found ${breakdownScores.length} competency scores in assessment_competency_breakdown for assessment ${assessmentId}`);
+      competencyScores = breakdownScores;
+    }
+
+    res.json(competencyScores);
+  } catch (error) {
+    console.error('Error fetching competency scores:', error);
+    res.status(500).json({
+      error: 'Failed to fetch competency scores',
+      code: 'FETCH_COMPETENCY_SCORES_ERROR'
+    });
+  }
+};
+
+// Get competency growth data for a subject
+export const getCompetencyGrowth = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const subjectId = parseInt(req.params.subjectId);
+
+    // Get all competency scores for this student and subject
+    const competencyScores = await executeQuery(`
+      SELECT 
+        scs.competency_id as competencyId,
+        c.code as competencyCode,
+        c.name as competencyName,
+        a.id as assessmentId,
+        a.assessment_period as assessmentPeriod,
+        a.year,
+        a.date_taken as dateTaken,
+        scs.final_score as finalScore,
+        scs.feedback_type as feedbackType
+      FROM student_competency_scores scs
+      JOIN competencies c ON scs.competency_id = c.id
+      JOIN assessments a ON scs.assessment_id = a.id
+      WHERE scs.student_id = ? AND scs.subject_id = ?
+      ORDER BY c.name, a.year, 
+        CASE a.assessment_period 
+          WHEN 'Fall' THEN 1 
+          WHEN 'Winter' THEN 2 
+          WHEN 'Spring' THEN 3 
+        END
+    `, [studentId, subjectId]);
+
+    // Group by competency and calculate growth trends
+    const competencyGrowth = [];
+    const competencyGroups = {};
+
+    // Group scores by competency
+    competencyScores.forEach(score => {
+      if (!competencyGroups[score.competencyId]) {
+        competencyGroups[score.competencyId] = {
+          competencyId: score.competencyId,
+          competencyCode: score.competencyCode,
+          competencyName: score.competencyName,
+          scores: []
+        };
+      }
+      competencyGroups[score.competencyId].scores.push({
+        assessmentId: score.assessmentId,
+        assessmentPeriod: score.assessmentPeriod,
+        year: score.year,
+        dateTaken: score.dateTaken,
+        finalScore: score.finalScore,
+        feedbackType: score.feedbackType
+      });
+    });
+
+    // Calculate growth trends and average scores
+    Object.values(competencyGroups).forEach(competency => {
+      const scores = competency.scores;
+      const averageScore = scores.reduce((sum, s) => sum + s.finalScore, 0) / scores.length;
+      
+      // Determine growth trend
+      let growthTrend = 'stable';
+      if (scores.length >= 2) {
+        const firstScore = scores[0].finalScore;
+        const lastScore = scores[scores.length - 1].finalScore;
+        const difference = lastScore - firstScore;
+        
+        if (difference > 5) {
+          growthTrend = 'improving';
+        } else if (difference < -5) {
+          growthTrend = 'declining';
+        }
+      }
+
+      // Generate overall feedback
+      let overallFeedback = '';
+      if (averageScore >= 80) {
+        overallFeedback = `Excellent performance in ${competency.competencyName}. You consistently demonstrate strong mastery of this skill area.`;
+      } else if (averageScore >= 60) {
+        overallFeedback = `Good performance in ${competency.competencyName}. You show solid understanding with room for continued growth.`;
+      } else {
+        overallFeedback = `Focus on improving ${competency.competencyName}. This area offers significant opportunities for development.`;
+      }
+
+      competencyGrowth.push({
+        ...competency,
+        averageScore: Math.round(averageScore * 10) / 10,
+        growthTrend,
+        overallFeedback
+      });
+    });
+
+    res.json(competencyGrowth);
+  } catch (error) {
+    console.error('Error fetching competency growth:', error);
+    res.status(500).json({
+      error: 'Failed to fetch competency growth data',
+      code: 'FETCH_COMPETENCY_GROWTH_ERROR'
+    });
+  }
+};

@@ -7,7 +7,9 @@ import {
   getAssessmentResults,
   getGrowthOverTime,
   getLatestAssessmentDetails,
-  getAvailableSubjects
+  getAvailableSubjects,
+  getCompetencyScores,
+  getCompetencyGrowth
 } from '../controllers/studentController.js';
 import { authenticateToken, studentOnly } from '../middleware/auth.js';
 import { validateId, validateAssessmentId, validateSubjectId, validateAssessmentStart, validateAnswerSubmission } from '../middleware/validation.js';
@@ -31,5 +33,9 @@ router.get('/assessments/results/detailed/:assessmentId', validateAssessmentId, 
 router.get('/assessments/latest/:subjectId', validateSubjectId, getLatestAssessmentDetails);
 router.get('/assessments/growth/:subjectId', validateSubjectId, getGrowthOverTime);
 router.get('/assessments/dashboard', getDashboardData);
+
+// Competency Analytics
+router.get('/assessments/:assessmentId/competencies', validateAssessmentId, getCompetencyScores);
+router.get('/assessments/competency-growth/:subjectId', validateSubjectId, getCompetencyGrowth);
 
 export default router;

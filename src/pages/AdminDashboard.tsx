@@ -15,8 +15,11 @@ import GrowthOverTimeChart from '../components/GrowthOverTimeChart';
 import Navigation from '../components/Navigation';
 import AssessmentConfigList from '../components/AssessmentConfigList';
 import CompetencyList from '../components/CompetencyList';
+import SubjectPerformanceDashboard from '../components/SubjectPerformanceDashboard';
+import CompetencyMasteryDashboard from '../components/CompetencyMasteryDashboard';
 import CompetencyForm from '../components/CompetencyForm';
-import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User, Settings, Building, GraduationCap, Clock, Target } from 'lucide-react';
+import CompetencyAnalytics from '../components/CompetencyAnalytics';
+import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User, Settings, Building, GraduationCap, Clock, Target, Brain } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -28,11 +31,15 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   
   // Growth chart states
-  const [activeTab, setActiveTab] = useState<'students' | 'questions' | 'growth' | 'subjects' | 'schools' | 'grades' | 'configs' | 'competencies'>('students');
+  const [activeTab, setActiveTab] = useState<'students' | 'questions' | 'growth' | 'subjects' | 'schools' | 'grades' | 'configs' | 'competencies' | 'performance' | 'competency-analytics'>('students');
   const [students, setStudents] = useState<Array<{id: number, username: string, firstName?: string, lastName?: string}>>([]);
   const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
   const [growthData, setGrowthData] = useState<any>(null);
   const [growthLoading, setGrowthLoading] = useState(false);
+  const [growthSubTab, setGrowthSubTab] = useState<'growth' | 'competency'>('growth');
+  const [competencyScores, setCompetencyScores] = useState<any[]>([]);
+  const [competencyGrowthData, setCompetencyGrowthData] = useState<any[]>([]);
+  const [competencyLoading, setCompetencyLoading] = useState(false);
 
   // Cascading filter states for growth analysis
   const [schools, setSchools] = useState<School[]>([]);
@@ -87,6 +94,42 @@ const AdminDashboard: React.FC = () => {
         });
     }
   }, [activeTab, selectedStudent, selectedSubject]);
+
+  // Load competency data when student and subject are selected
+  useEffect(() => {
+    if (activeTab === 'growth' && selectedStudent && selectedSubject && growthSubTab === 'competency') {
+      setCompetencyLoading(true);
+      
+      // Import the API function
+      import('../services/api').then(({ competenciesAPI }) => {
+        const promises = [];
+        
+        // Get latest competency scores for the student
+        promises.push(
+          competenciesAPI.getStudentCompetencyScores(selectedStudent)
+            .then(data => setCompetencyScores(data))
+            .catch(error => {
+              console.error('Error fetching competency scores:', error);
+              setCompetencyScores([]);
+            })
+        );
+        
+        // Get competency growth data
+        promises.push(
+          competenciesAPI.getStudentCompetencyGrowth(selectedStudent, selectedSubject.id)
+            .then(data => setCompetencyGrowthData(data))
+            .catch(error => {
+              console.error('Error fetching competency growth:', error);
+              setCompetencyGrowthData([]);
+            })
+        );
+        
+        Promise.all(promises).finally(() => {
+          setCompetencyLoading(false);
+        });
+      });
+    }
+  }, [activeTab, selectedStudent, selectedSubject, growthSubTab]);
 
   // Cascading filter logic
   useEffect(() => {
@@ -405,6 +448,32 @@ const AdminDashboard: React.FC = () => {
                 <span className="hidden sm:inline">COMPETENCIES</span>
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab('performance')}
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'performance'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <BarChart3 className="h-4 w-4" />
+                <span className="hidden sm:inline">PERFORMANCE</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('competency-analytics')}
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'competency-analytics'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <Brain className="h-4 w-4" />
+                <span className="hidden sm:inline">COMPETENCY ANALYTICS</span>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -607,22 +676,79 @@ const AdminDashboard: React.FC = () => {
                     <p className="text-gray-600">
                       {filteredStudents.find(s => s.id === selectedStudent)?.firstName || 'Student'} - {selectedSubject.name}
                     </p>
-                 
                   </div>
 
-                  {growthLoading ? (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
-                      <div className="flex items-center justify-center h-64">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                      </div>
+                  {/* Sub-tab Navigation */}
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                    <div className="flex space-x-4">
+                      <button
+                        onClick={() => setGrowthSubTab('growth')}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                          growthSubTab === 'growth'
+                            ? 'bg-blue-100 text-blue-800 border-2 border-blue-200'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-2 border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <TrendingUp className="h-4 w-4" />
+                          <span>Growth Over Time</span>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => setGrowthSubTab('competency')}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                          growthSubTab === 'competency'
+                            ? 'bg-purple-100 text-purple-800 border-2 border-purple-200'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-2 border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <Brain className="h-4 w-4" />
+                          <span>Competency Analysis</span>
+                        </div>
+                      </button>
                     </div>
-                  ) : growthData ? (
-                    <GrowthOverTimeChart data={growthData} />
+                  </div>
+
+                  {/* Sub-tab Content */}
+                  {growthSubTab === 'growth' ? (
+                    <div>
+                      {growthLoading ? (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                          <div className="flex items-center justify-center h-64">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                          </div>
+                        </div>
+                      ) : growthData ? (
+                        <GrowthOverTimeChart data={growthData} />
+                      ) : (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                          <div className="text-center">
+                            <p className="text-gray-600">Select a subject and student to view growth data.</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ) : (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
-                      <div className="text-center">
-                        <p className="text-gray-600">Select a subject and student to view growth data.</p>
-                      </div>
+                    <div>
+                      {competencyLoading ? (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                          <div className="flex items-center justify-center h-64">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+                          </div>
+                        </div>
+                      ) : competencyScores.length > 0 ? (
+                        <CompetencyAnalytics 
+                          currentScores={competencyScores}
+                          growthData={competencyGrowthData}
+                        />
+                      ) : (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                          <div className="text-center">
+                            <p className="text-gray-600">No competency data available for this student and subject.</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -689,6 +815,27 @@ const AdminDashboard: React.FC = () => {
                 setShowCompetencyForm(true);
               }}
               refreshTrigger={competencyRefreshTrigger}
+            />
+          </div>
+        )}
+
+        {/* Performance Analytics Tab Content */}
+        {activeTab === 'performance' && (
+          <div className="space-y-6">
+            <SubjectPerformanceDashboard 
+              schools={schools}
+              grades={grades}
+            />
+          </div>
+        )}
+
+        {/* Competency Analytics Tab Content */}
+        {activeTab === 'competency-analytics' && (
+          <div className="space-y-6">
+            <CompetencyMasteryDashboard 
+              schools={schools}
+              grades={grades}
+              subjects={subjects}
             />
           </div>
         )}

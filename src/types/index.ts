@@ -178,6 +178,7 @@ export interface DetailedAssessmentResults {
     period: string;
     year: number;
   } | null;
+  competencyScores?: CompetencyScore[];
 }
 
 export interface DashboardData {
@@ -197,6 +198,38 @@ export interface AssessmentConfiguration {
   updatedAt?: string;
   gradeName?: string;
   subjectName?: string;
+}
+
+export interface CompetencyScore {
+  id: number;
+  competencyId: number;
+  competencyCode: string;
+  competencyName: string;
+  questionsAttempted: number;
+  questionsCorrect: number;
+  rawScore: number;
+  weightedScore: number;
+  finalScore: number;
+  feedbackType: 'strong' | 'neutral' | 'growth';
+  feedbackText: string;
+  dateCalculated: string;
+}
+
+export interface CompetencyGrowthData {
+  competencyId: number;
+  competencyCode: string;
+  competencyName: string;
+  scores: Array<{
+    assessmentId: number;
+    assessmentPeriod: string;
+    year: number;
+    dateTaken: string;
+    finalScore: number;
+    feedbackType: 'strong' | 'neutral' | 'growth';
+  }>;
+  averageScore: number;
+  growthTrend: 'improving' | 'declining' | 'stable';
+  overallFeedback: string;
 }
 
 export interface AdminStats {

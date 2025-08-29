@@ -13,7 +13,13 @@ import {
   getQuestionById,
   updateQuestion,
   deleteQuestion,
-  debugQuestions
+  debugQuestions,
+  getSubjectPerformanceDashboard,
+  getAchievementGapAnalysis,
+  getCompetencyMasteryReport,
+  getCompetencyGrowthTracking,
+  getStudentCompetencyScores,
+  getStudentCompetencyGrowth
 } from '../controllers/adminController.js';
 import { authenticateToken, adminOnly } from '../middleware/auth.js';
 import { validateId, validateSubjectId, validateQuestion, validateBulkQuestions, validateStudent } from '../middleware/validation.js';
@@ -39,6 +45,16 @@ router.delete('/students/:id', validateId, deleteStudent);
 
 // Debug endpoint
 router.get('/debug/questions', debugQuestions);
+
+// Analytics
+router.get('/analytics/subject-performance', getSubjectPerformanceDashboard);
+router.get('/analytics/achievement-gaps', getAchievementGapAnalysis);
+router.get('/analytics/competency-mastery', getCompetencyMasteryReport);
+router.get('/analytics/competency-growth', getCompetencyGrowthTracking);
+
+// Student Competency Analytics
+router.get('/student-competency-scores', getStudentCompetencyScores);
+router.get('/student-competency-growth', getStudentCompetencyGrowth);
 
 // Questions
 router.post('/questions', validateQuestion, createQuestion);

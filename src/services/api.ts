@@ -135,6 +135,45 @@ export const adminAPI = {
   getStudentGrowth: async (studentId: number, subjectId: number) => {
     const response = await api.get(`/admin/students/${studentId}/growth/${subjectId}`);
     return response.data;
+  },
+  
+  // Analytics APIs
+  getSubjectPerformance: async (filters?: { schoolId?: number; gradeId?: number; year?: number }) => {
+    const params = new URLSearchParams();
+    if (filters?.schoolId) params.append('schoolId', filters.schoolId.toString());
+    if (filters?.gradeId) params.append('gradeId', filters.gradeId.toString());
+    if (filters?.year) params.append('year', filters.year.toString());
+    const response = await api.get(`/admin/analytics/subject-performance?${params}`);
+    return response.data;
+  },
+  
+  getAchievementGaps: async (filters?: { schoolId?: number; gradeId?: number; year?: number }) => {
+    const params = new URLSearchParams();
+    if (filters?.schoolId) params.append('schoolId', filters.schoolId.toString());
+    if (filters?.gradeId) params.append('gradeId', filters.gradeId.toString());
+    if (filters?.year) params.append('year', filters.year.toString());
+    const response = await api.get(`/admin/analytics/achievement-gaps?${params}`);
+    return response.data;
+  },
+  
+  getCompetencyMastery: async (filters?: { schoolId?: number; gradeId?: number; subjectId?: number; year?: number }) => {
+    const params = new URLSearchParams();
+    if (filters?.schoolId) params.append('schoolId', filters.schoolId.toString());
+    if (filters?.gradeId) params.append('gradeId', filters.gradeId.toString());
+    if (filters?.subjectId) params.append('subjectId', filters.subjectId.toString());
+    if (filters?.year) params.append('year', filters.year.toString());
+    const response = await api.get(`/admin/analytics/competency-mastery?${params}`);
+    return response.data;
+  },
+  
+  getCompetencyGrowth: async (filters?: { schoolId?: number; gradeId?: number; subjectId?: number; competencyId?: number }) => {
+    const params = new URLSearchParams();
+    if (filters?.schoolId) params.append('schoolId', filters.schoolId.toString());
+    if (filters?.gradeId) params.append('gradeId', filters.gradeId.toString());
+    if (filters?.subjectId) params.append('subjectId', filters.subjectId.toString());
+    if (filters?.competencyId) params.append('competencyId', filters.competencyId.toString());
+    const response = await api.get(`/admin/analytics/competency-growth?${params}`);
+    return response.data;
   }
 };
 
@@ -282,6 +321,16 @@ export const studentAPI = {
   getGrowthOverTime: async (subjectId: number) => {
     const response = await api.get(`/student/assessments/growth/${subjectId}`);
     return response.data;
+  },
+
+  getCompetencyScores: async (assessmentId: number) => {
+    const response = await api.get(`/student/assessments/${assessmentId}/competencies`);
+    return response.data;
+  },
+
+  getCompetencyGrowth: async (subjectId: number) => {
+    const response = await api.get(`/student/assessments/competency-growth/${subjectId}`);
+    return response.data;
   }
 };
 
@@ -342,7 +391,15 @@ export const competenciesAPI = {
     api.put<{message: string, competency: Competency}>(`/admin/competencies/${id}`, data).then(res => res.data),
   delete: (id: number) => api.delete<{message: string}>(`/admin/competencies/${id}`).then(res => res.data),
   getStats: () => api.get<CompetencyStats[]>('/admin/competencies/stats').then(res => res.data),
-  getQuestions: (id: number) => api.get(`/admin/competencies/${id}/questions`).then(res => res.data)
+  getQuestions: (id: number) => api.get(`/admin/competencies/${id}/questions`).then(res => res.data),
+  getStudentCompetencyScores: (studentId?: number, assessmentId?: number) => 
+    api.get('/admin/student-competency-scores', { 
+      params: { studentId, assessmentId } 
+    }).then(res => res.data),
+  getStudentCompetencyGrowth: (studentId: number, subjectId: number) => 
+    api.get('/admin/student-competency-growth', { 
+      params: { studentId, subjectId } 
+    }).then(res => res.data)
 };
 
 export default api;
