@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Subject, Question, AdminStats, School, Grade, Competency } from '../types';
-import { subjectsAPI, adminAPI, schoolsAPI, gradesAPI } from '../services/api';
+import { subjectsAPI, adminAPI, schoolsAPI, gradesAPI, studentsAPI } from '../services/api';
 import QuestionForm from '../components/QuestionForm';
 import QuestionList from '../components/QuestionList';
 import SubjectForm from '../components/SubjectForm';
@@ -33,6 +33,13 @@ const AdminDashboard: React.FC = () => {
   const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
   const [growthData, setGrowthData] = useState<any>(null);
   const [growthLoading, setGrowthLoading] = useState(false);
+
+  // Cascading filter states for growth analysis
+  const [schools, setSchools] = useState<School[]>([]);
+  const [grades, setGrades] = useState<Grade[]>([]);
+  const [filteredStudents, setFilteredStudents] = useState<Array<{id: number, username: string, firstName?: string, lastName?: string, schoolName?: string, gradeName?: string}>>([]);
+  const [selectedSchool, setSelectedSchool] = useState<number | null>(null);
+  const [selectedGrade, setSelectedGrade] = useState<number | null>(null);
 
   // Subjects management states
   const [showSubjectForm, setShowSubjectForm] = useState(false);
@@ -81,16 +88,48 @@ const AdminDashboard: React.FC = () => {
     }
   }, [activeTab, selectedStudent, selectedSubject]);
 
+  // Cascading filter logic
+  useEffect(() => {
+    if (selectedSchool && selectedGrade) {
+      // Load students for selected school and grade
+      studentsAPI.getBySchoolAndGrade(selectedSchool, selectedGrade)
+        .then(data => {
+          setFilteredStudents(data);
+          setSelectedStudent(null); // Reset student selection
+        })
+        .catch(error => {
+          console.error('Error fetching students by school and grade:', error);
+          setFilteredStudents([]);
+        });
+    } else {
+      setFilteredStudents([]);
+      setSelectedStudent(null);
+    }
+  }, [selectedSchool, selectedGrade]);
+
+  // Reset filters when school changes
+  useEffect(() => {
+    if (selectedSchool === null) {
+      setSelectedGrade(null);
+      setSelectedStudent(null);
+      setFilteredStudents([]);
+    }
+  }, [selectedSchool]);
+
   const loadInitialData = async () => {
     try {
-      const [subjectsData, statsData, studentsData] = await Promise.all([
+      const [subjectsData, statsData, studentsData, schoolsData, gradesData] = await Promise.all([
         subjectsAPI.getAll(),
         adminAPI.getStats(),
-        adminAPI.getStudents()
+        adminAPI.getStudents(),
+        schoolsAPI.getAll(),
+        gradesAPI.getActive()
       ]);
       setSubjects(subjectsData);
       setStats(statsData);
       setStudents(studentsData);
+      setSchools(schoolsData);
+      setGrades(gradesData);
       if (subjectsData.length > 0) {
         setSelectedSubject(subjectsData[0]);
       }
@@ -454,64 +493,111 @@ const AdminDashboard: React.FC = () => {
 
         {/* Student Growth Tab Content */}
         {activeTab === 'growth' && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Selection Sidebar */}
-            <div className="lg:col-span-1">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                  <BookOpen className="h-5 w-5 text-blue-600" />
-                  <span>Subject</span>
-                </h2>
-                <div className="space-y-2">
-                  {subjects.map((subject) => (
-                    <button
-                      key={subject.id}
-                      onClick={() => setSelectedSubject(subject)}
-                      className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${
-                        selectedSubject?.id === subject.id
-                          ? 'bg-blue-100 text-blue-900 border-2 border-blue-200'
-                          : 'text-gray-700 hover:bg-gray-50 border-2 border-transparent'
-                      }`}
-                    >
-                      <div className="font-medium">{subject.name}</div>
-                    </button>
-                  ))}
+          <div className="space-y-6">
+            {/* Filter Controls - Horizontal Layout */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                <TrendingUp className="h-5 w-5 text-blue-600" />
+                <span>Growth Analysis Filters</span>
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* School Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
+                    <Building className="h-4 w-4 text-purple-600" />
+                    <span>School</span>
+                  </label>
+                  <select
+                    value={selectedSchool || ''}
+                    onChange={(e) => setSelectedSchool(e.target.value ? Number(e.target.value) : null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                  >
+                    <option value="">Select School</option>
+                    {schools.map((school) => (
+                      <option key={school.id} value={school.id}>
+                        {school.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
 
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                  <User className="h-5 w-5 text-emerald-600" />
-                  <span>Student</span>
-                </h2>
-                <div className="space-y-2">
-                  {students.map((student) => (
-                    <button
-                      key={student.id}
-                      onClick={() => setSelectedStudent(student.id)}
-                      className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${
-                        selectedStudent === student.id
-                          ? 'bg-emerald-100 text-emerald-900 border-2 border-emerald-200'
-                          : 'text-gray-700 hover:bg-gray-50 border-2 border-transparent'
-                      }`}
-                    >
-                      <div className="font-medium">
+                {/* Grade Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
+                    <GraduationCap className="h-4 w-4 text-orange-600" />
+                    <span>Grade</span>
+                  </label>
+                  <select
+                    value={selectedGrade || ''}
+                    onChange={(e) => setSelectedGrade(e.target.value ? Number(e.target.value) : null)}
+                    disabled={!selectedSchool}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm ${
+                      !selectedSchool ? 'bg-gray-100 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <option value="">Select Grade</option>
+                    {grades.map((grade) => (
+                      <option key={grade.id} value={grade.id}>
+                        {grade.display_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Student Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
+                    <User className="h-4 w-4 text-emerald-600" />
+                    <span>Student</span>
+                  </label>
+                  <select
+                    value={selectedStudent || ''}
+                    onChange={(e) => setSelectedStudent(e.target.value ? Number(e.target.value) : null)}
+                    disabled={!selectedGrade}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm ${
+                      !selectedGrade ? 'bg-gray-100 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <option value="">Select Student</option>
+                    {filteredStudents.map((student) => (
+                      <option key={student.id} value={student.id}>
                         {student.firstName && student.lastName 
                           ? `${student.firstName} ${student.lastName}`
                           : student.username
                         }
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {student.username}
-                      </div>
-                    </button>
-                  ))}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Subject Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
+                    <BookOpen className="h-4 w-4 text-blue-600" />
+                    <span>Subject</span>
+                  </label>
+                  <select
+                    value={selectedSubject?.id || ''}
+                    onChange={(e) => {
+                      const subject = subjects.find(s => s.id === Number(e.target.value));
+                      setSelectedSubject(subject || null);
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  >
+                    <option value="">Select Subject</option>
+                    {subjects.map((subject) => (
+                      <option key={subject.id} value={subject.id}>
+                        {subject.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
 
             {/* Growth Chart Content */}
-            <div className="lg:col-span-3">
+            <div>
               {selectedSubject && selectedStudent ? (
                 <div className="space-y-6">
                   <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -519,8 +605,9 @@ const AdminDashboard: React.FC = () => {
                       Student Growth Analysis
                     </h2>
                     <p className="text-gray-600">
-                      {students.find(s => s.id === selectedStudent)?.firstName || 'Student'} - {selectedSubject.name}
+                      {filteredStudents.find(s => s.id === selectedStudent)?.firstName || 'Student'} - {selectedSubject.name}
                     </p>
+                 
                   </div>
 
                   {growthLoading ? (

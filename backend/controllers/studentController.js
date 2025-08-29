@@ -804,56 +804,77 @@ export const getGrowthOverTime = async (req, res) => {
     const { subjectId } = req.params;
     const studentId = req.user.id;
 
-    // Get student's RIT scores over time for this subject
-    // Use window function to get only the latest assessment for each year+season combination
-    const studentScores = await executeQuery(`
-      SELECT 
-        assessment_period,
-        year,
-        rit_score,
-        date_taken
-      FROM (
+      // Get student's school and grade information
+      const studentInfo = await executeQuery(`
+        SELECT u.school_id, u.grade_id, s.name as school_name, g.name as grade_name
+        FROM users u
+        JOIN schools s ON u.school_id = s.id
+        JOIN grades g ON u.grade_id = g.id
+        WHERE u.id = ?
+      `, [studentId]);
+  
+      if (studentInfo.length === 0) {
+        return res.status(404).json({
+          error: 'Student information not found',
+          code: 'STUDENT_NOT_FOUND'
+        });
+      }
+  
+      const { school_id, grade_id, school_name, grade_name } = studentInfo[0];
+  
+      // Get student's RIT scores over time for this subject
+      // Use window function to get only the latest assessment for each year+season combination
+      const studentScores = await executeQuery(`
         SELECT 
           assessment_period,
           year,
           rit_score,
-          date_taken,
-          ROW_NUMBER() OVER (
-            PARTITION BY year, assessment_period 
-            ORDER BY date_taken DESC, id DESC
-          ) as rn
-        FROM assessments 
-        WHERE student_id = ? 
-        AND subject_id = ? 
-        AND rit_score IS NOT NULL
-      ) ranked
-      WHERE rn = 1
-      ORDER BY year ASC, 
-        CASE assessment_period 
-          WHEN 'Fall' THEN 1 
-          WHEN 'Winter' THEN 2 
-          WHEN 'Spring' THEN 3 
-        END ASC
-    `, [studentId, subjectId]);
+          date_taken
+        FROM (
+          SELECT 
+            assessment_period,
+            year,
+            rit_score,
+            date_taken,
+            ROW_NUMBER() OVER (
+              PARTITION BY year, assessment_period 
+              ORDER BY date_taken DESC, id DESC
+            ) as rn
+          FROM assessments 
+          WHERE student_id = ? 
+          AND subject_id = ? 
+          AND rit_score IS NOT NULL
+        ) ranked
+        WHERE rn = 1
+        ORDER BY year ASC, 
+          CASE assessment_period 
+            WHEN 'Fall' THEN 1 
+            WHEN 'Winter' THEN 2 
+            WHEN 'Spring' THEN 3 
+          END ASC
+      `, [studentId, subjectId]);
 
     // Get class average scores for the same subject and periods
     const classAverages = await executeQuery(`
       SELECT 
-        assessment_period,
-        year,
-        AVG(rit_score) as average_rit_score,
-        COUNT(*) as student_count
-      FROM assessments 
-      WHERE subject_id = ? 
-      AND rit_score IS NOT NULL
-      GROUP BY assessment_period, year
-      ORDER BY year ASC, 
-        CASE assessment_period 
+        a.assessment_period,
+        a.year,
+        AVG(a.rit_score) as average_rit_score,
+        COUNT(DISTINCT a.student_id) as student_count
+      FROM assessments a
+      JOIN users u ON a.student_id = u.id
+      WHERE a.subject_id = ? 
+      AND a.rit_score IS NOT NULL
+      AND u.school_id = ?
+      AND u.grade_id = ?
+      GROUP BY a.assessment_period, a.year
+      ORDER BY a.year ASC, 
+        CASE a.assessment_period 
           WHEN 'Fall' THEN 1 
           WHEN 'Winter' THEN 2 
           WHEN 'Spring' THEN 3 
         END ASC
-    `, [subjectId]);
+    `, [subjectId, school_id, grade_id]);
 
     // Get subject name
     const subjectData = await executeQuery(
@@ -863,7 +884,6 @@ export const getGrowthOverTime = async (req, res) => {
 
     const subjectName = subjectData.length > 0 ? subjectData[0].name : 'Unknown Subject';
 
-    // Format the data for the chart
     const formattedStudentScores = studentScores.map(score => ({
       period: `${score.assessment_period} ${score.year}`,
       year: score.year,
@@ -883,25 +903,28 @@ export const getGrowthOverTime = async (req, res) => {
     // Calculate student distribution by period and RIT score ranges
     const periodDistributions = await executeQuery(`
       SELECT 
-        assessment_period,
-        year,
+        a.assessment_period,
+        a.year,
         COUNT(*) as total_students,
         SUM(CASE WHEN rit_score BETWEEN 100 AND 150 THEN 1 ELSE 0 END) as red_count,
         SUM(CASE WHEN rit_score BETWEEN 151 AND 200 THEN 1 ELSE 0 END) as orange_count,
         SUM(CASE WHEN rit_score BETWEEN 201 AND 250 THEN 1 ELSE 0 END) as yellow_count,
         SUM(CASE WHEN rit_score BETWEEN 251 AND 300 THEN 1 ELSE 0 END) as green_count,
         SUM(CASE WHEN rit_score BETWEEN 301 AND 350 THEN 1 ELSE 0 END) as blue_count
-      FROM assessments 
-      WHERE subject_id = ? 
-      AND rit_score IS NOT NULL
-      GROUP BY assessment_period, year
-      ORDER BY year ASC, 
-        CASE assessment_period 
+       FROM assessments a
+      JOIN users u ON a.student_id = u.id
+      WHERE a.subject_id = ? 
+      AND a.rit_score IS NOT NULL
+      AND u.school_id = ?
+      AND u.grade_id = ?
+      GROUP BY a.assessment_period, a.year
+      ORDER BY a.year ASC, 
+        CASE a.assessment_period 
           WHEN 'Fall' THEN 1 
           WHEN 'Winter' THEN 2 
           WHEN 'Spring' THEN 3 
         END ASC
-    `, [subjectId]);
+    `, [subjectId, school_id, grade_id]);
 
     // Calculate percentages for each period
     const formattedDistributions = periodDistributions.map(period => ({
@@ -920,6 +943,8 @@ export const getGrowthOverTime = async (req, res) => {
 
     res.json({
       subjectName,
+      schoolName: school_name,
+      gradeName: grade_name,
       studentScores: formattedStudentScores,
       classAverages: formattedClassAverages,
       periodDistributions: formattedDistributions,

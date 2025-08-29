@@ -36,6 +36,24 @@ export const getStudentGrowth = async (req, res) => {
   try {
     const { studentId, subjectId } = req.params;
     
+    // Get student's school and grade information
+    const studentInfo = await executeQuery(`
+      SELECT u.school_id, u.grade_id, s.name as school_name, g.name as grade_name
+      FROM users u
+      JOIN schools s ON u.school_id = s.id
+      JOIN grades g ON u.grade_id = g.id
+      WHERE u.id = ?
+    `, [studentId]);
+
+    if (studentInfo.length === 0) {
+      return res.status(404).json({
+        error: 'Student information not found',
+        code: 'STUDENT_NOT_FOUND'
+      });
+    }
+
+    const { school_id, grade_id, school_name, grade_name } = studentInfo[0];
+    
     // Get subject name
     const subjectResult = await executeQuery('SELECT name FROM subjects WHERE id = ?', [subjectId]);
     if (subjectResult.length === 0) {
@@ -47,6 +65,7 @@ export const getStudentGrowth = async (req, res) => {
     const subjectName = subjectResult[0].name;
 
     // Get all assessments for this student and subject (student's RIT progression)
+    // Use window function to get only the latest assessment for each year+season combination
     const studentScores = await executeQuery(`
       SELECT 
         CONCAT(assessment_period, ' ', year) as period,
@@ -54,8 +73,22 @@ export const getStudentGrowth = async (req, res) => {
         assessment_period,
         rit_score,
         date_taken
-      FROM assessments 
-      WHERE student_id = ? AND subject_id = ?
+      FROM (
+        SELECT 
+          assessment_period,
+          year,
+          rit_score,
+          date_taken,
+          ROW_NUMBER() OVER (
+            PARTITION BY year, assessment_period 
+            ORDER BY date_taken DESC, id DESC
+          ) as rn
+        FROM assessments 
+        WHERE student_id = ? 
+        AND subject_id = ? 
+        AND rit_score IS NOT NULL
+      ) ranked
+      WHERE rn = 1
       ORDER BY year ASC, 
         CASE assessment_period 
           WHEN 'Fall' THEN 1 
@@ -64,47 +97,54 @@ export const getStudentGrowth = async (req, res) => {
         END ASC
     `, [studentId, subjectId]);
 
-    // Get class averages for each period
+    // Get class averages for each period (filtered by school and grade)
     const classAverages = await executeQuery(`
       SELECT 
-        CONCAT(assessment_period, ' ', year) as period,
-        year,
-        assessment_period,
-        AVG(rit_score) as averageRITScore,
-        COUNT(*) as studentCount
-      FROM assessments 
-      WHERE subject_id = ? AND rit_score IS NOT NULL
-      GROUP BY assessment_period, year
-      ORDER BY year ASC, 
-        CASE assessment_period 
+        CONCAT(a.assessment_period, ' ', a.year) as period,
+        a.year,
+        a.assessment_period,
+        AVG(a.rit_score) as averageRITScore,
+        COUNT(DISTINCT a.student_id) as studentCount
+      FROM assessments a
+      JOIN users u ON a.student_id = u.id
+      WHERE a.subject_id = ? 
+      AND a.rit_score IS NOT NULL
+      AND u.school_id = ?
+      AND u.grade_id = ?
+      GROUP BY a.assessment_period, a.year
+      ORDER BY a.year ASC, 
+        CASE a.assessment_period 
           WHEN 'Fall' THEN 1 
           WHEN 'Winter' THEN 2 
           WHEN 'Spring' THEN 3 
         END ASC
-    `, [subjectId]);
+    `, [subjectId, school_id, grade_id]);
 
     // Calculate student distribution by period and RIT score ranges
     const periodDistributions = await executeQuery(`
       SELECT 
-        assessment_period,
-        year,
+        a.assessment_period,
+        a.year,
         COUNT(*) as total_students,
         SUM(CASE WHEN rit_score BETWEEN 100 AND 150 THEN 1 ELSE 0 END) as red_count,
         SUM(CASE WHEN rit_score BETWEEN 151 AND 200 THEN 1 ELSE 0 END) as orange_count,
         SUM(CASE WHEN rit_score BETWEEN 201 AND 250 THEN 1 ELSE 0 END) as yellow_count,
         SUM(CASE WHEN rit_score BETWEEN 251 AND 300 THEN 1 ELSE 0 END) as green_count,
         SUM(CASE WHEN rit_score BETWEEN 301 AND 350 THEN 1 ELSE 0 END) as blue_count
-      FROM assessments 
-      WHERE subject_id = ? 
-      AND rit_score IS NOT NULL
-      GROUP BY assessment_period, year
-      ORDER BY year ASC, 
-        CASE assessment_period 
+       FROM assessments a
+      JOIN users u ON a.student_id = u.id
+      WHERE a.subject_id = ? 
+      AND a.rit_score IS NOT NULL
+      AND u.school_id = ?
+      AND u.grade_id = ?
+      GROUP BY a.assessment_period, a.year
+      ORDER BY a.year ASC, 
+        CASE a.assessment_period 
           WHEN 'Fall' THEN 1 
           WHEN 'Winter' THEN 2 
           WHEN 'Spring' THEN 3 
         END ASC
-    `, [subjectId]);
+    `, [subjectId, school_id, grade_id]);
 
     // Calculate percentages for each period
     const formattedDistributions = periodDistributions.map(period => ({
@@ -123,6 +163,8 @@ export const getStudentGrowth = async (req, res) => {
 
     res.json({
       subjectName,
+      schoolName: school_name,
+      gradeName: grade_name,
       studentScores: studentScores.map(score => ({
         period: score.period,
         year: score.year,
@@ -966,6 +1008,43 @@ export const deleteStudent = async (req, res) => {
     res.status(500).json({
       error: 'Failed to delete student',
       code: 'DELETE_STUDENT_ERROR'
+    });
+  }
+};
+
+// Get students by school and grade
+export const getStudentsBySchoolAndGrade = async (req, res) => {
+  try {
+    const { schoolId, gradeId } = req.params;
+
+    const students = await executeQuery(`
+      SELECT 
+        u.id, 
+        u.username, 
+        u.first_name, 
+        u.last_name, 
+        u.role, 
+        u.created_at,
+        s.name as school_name, 
+        s.id as school_id,
+        g.display_name as grade_name, 
+        g.id as grade_id, 
+        g.grade_level
+      FROM users u
+      LEFT JOIN schools s ON u.school_id = s.id
+      LEFT JOIN grades g ON u.grade_id = g.id
+      WHERE u.role = 'student'
+      AND u.school_id = ?
+      AND u.grade_id = ?
+      ORDER BY u.first_name, u.last_name, u.username
+    `, [schoolId, gradeId]);
+
+    res.json(students);
+  } catch (error) {
+    console.error('Error fetching students by school and grade:', error);
+    res.status(500).json({
+      error: 'Failed to fetch students',
+      code: 'FETCH_STUDENTS_ERROR'
     });
   }
 };

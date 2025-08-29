@@ -323,6 +323,11 @@ export const studentsAPI = {
   getGrowth: async (studentId: number, subjectId: number) => {
     const response = await api.get(`/admin/students/${studentId}/growth/${subjectId}`);
     return response.data;
+  },
+
+  getBySchoolAndGrade: async (schoolId: number, gradeId: number) => {
+    const response = await api.get(`/admin/students/school/${schoolId}/grade/${gradeId}`);
+    return response.data;
   }
 };
 

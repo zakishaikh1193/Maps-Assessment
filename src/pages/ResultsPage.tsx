@@ -492,11 +492,7 @@ const ResultsPage: React.FC = () => {
                 <GrowthOverTimeChart data={growthData} />
                 
                 {/* Difficulty Progression Chart */}
-                <DifficultyProgressionChart
-                  data={results.difficultyProgression}
-                  currentRIT={results.statistics.currentRIT}
-                  previousRIT={results.statistics.previousRIT}
-                />
+               
               </>
             ) : (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">

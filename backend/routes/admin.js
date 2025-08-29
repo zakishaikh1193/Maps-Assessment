@@ -3,6 +3,7 @@ import {
   getAdminStats,
   getStudents,
   getStudentGrowth,
+  getStudentsBySchoolAndGrade,
   createStudent,
   updateStudent,
   deleteStudent,
@@ -29,6 +30,7 @@ router.get('/stats', getAdminStats);
 // Students
 router.get('/students', getStudents);
 router.get('/students/:studentId/growth/:subjectId', getStudentGrowth);
+router.get('/students/school/:schoolId/grade/:gradeId', getStudentsBySchoolAndGrade);
 
 // Student management
 router.post('/students', validateStudent, createStudent);

@@ -174,7 +174,7 @@ const CompetencyList: React.FC<CompetencyListProps> = ({
                       <div className="flex items-center space-x-2 col-span-2">
                         {getPerformanceIcon(competencyStats.average_score)}
                         <span className="text-gray-600">
-                          Avg: {competencyStats.average_score.toFixed(1)}%
+                          Avg: {competencyStats.average_score}%
                         </span>
                       </div>
                     )}
