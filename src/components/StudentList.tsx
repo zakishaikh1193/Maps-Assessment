@@ -4,9 +4,10 @@ import StudentForm from './StudentForm';
 
 interface StudentListProps {
   onStudentSelected?: (student: any) => void;
+  refreshTrigger?: number;
 }
 
-const StudentList: React.FC<StudentListProps> = ({ onStudentSelected }) => {
+const StudentList: React.FC<StudentListProps> = ({ onStudentSelected, refreshTrigger }) => {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -28,7 +29,7 @@ const StudentList: React.FC<StudentListProps> = ({ onStudentSelected }) => {
 
   useEffect(() => {
     fetchStudents();
-  }, []);
+  }, [refreshTrigger]);
 
   const handleAddStudent = () => {
     setEditingStudent(null);

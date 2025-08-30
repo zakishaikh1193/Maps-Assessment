@@ -19,7 +19,9 @@ import SubjectPerformanceDashboard from '../components/SubjectPerformanceDashboa
 import CompetencyMasteryDashboard from '../components/CompetencyMasteryDashboard';
 import CompetencyForm from '../components/CompetencyForm';
 import CompetencyAnalytics from '../components/CompetencyAnalytics';
-import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User, Settings, Building, GraduationCap, Clock, Target, Brain } from 'lucide-react';
+import CSVImportModal from '../components/CSVImportModal';
+import QuestionCSVImportModal from '../components/QuestionCSVImportModal';
+import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User, Settings, Building, GraduationCap, Clock, Target, Brain, Upload } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -67,6 +69,12 @@ const AdminDashboard: React.FC = () => {
   const [showCompetencyForm, setShowCompetencyForm] = useState(false);
   const [editingCompetency, setEditingCompetency] = useState<Competency | null>(null);
   const [competencyRefreshTrigger, setCompetencyRefreshTrigger] = useState(0);
+
+  // CSV Import states
+  const [showCSVImportModal, setShowCSVImportModal] = useState(false);
+  const [showQuestionCSVImportModal, setShowQuestionCSVImportModal] = useState(false);
+  const [studentRefreshTrigger, setStudentRefreshTrigger] = useState(0);
+  const [questionRefreshTrigger, setQuestionRefreshTrigger] = useState(0);
 
   useEffect(() => {
     loadInitialData();
@@ -525,13 +533,22 @@ const AdminDashboard: React.FC = () => {
                             Manage questions for {selectedSubject.name} assessments
                           </p>
                         </div>
-                        <button
-                          onClick={() => setShowQuestionForm(true)}
-                          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                        >
-                          <Plus className="h-5 w-5" />
-                          <span>Add Question</span>
-                        </button>
+                        <div className="flex space-x-3">
+                          <button
+                            onClick={() => setShowQuestionCSVImportModal(true)}
+                            className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200"
+                          >
+                            <Upload className="h-5 w-5" />
+                            <span>Import CSV</span>
+                          </button>
+                          <button
+                            onClick={() => setShowQuestionForm(true)}
+                            className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                          >
+                            <Plus className="h-5 w-5" />
+                            <span>Add Question</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -766,7 +783,24 @@ const AdminDashboard: React.FC = () => {
         {/* Students Management Tab Content */}
         {activeTab === 'students' && (
           <div className="space-y-6">
-            <StudentList />
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Student Management</h2>
+                  <p className="text-gray-600 mt-1">Manage all students in the system</p>
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setShowCSVImportModal(true)}
+                    className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200"
+                  >
+                    <Upload className="h-5 w-5" />
+                    <span>Import CSV</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <StudentList refreshTrigger={studentRefreshTrigger} />
           </div>
         )}
 
@@ -889,6 +923,28 @@ const AdminDashboard: React.FC = () => {
             }}
           />
         )}
+
+        {/* CSV Import Modal */}
+        <CSVImportModal
+          isOpen={showCSVImportModal}
+          onClose={() => setShowCSVImportModal(false)}
+          onImportComplete={() => {
+            setStudentRefreshTrigger(prev => prev + 1);
+          }}
+        />
+
+        {/* Question CSV Import Modal */}
+        <QuestionCSVImportModal
+          isOpen={showQuestionCSVImportModal}
+          onClose={() => setShowQuestionCSVImportModal(false)}
+          onImportComplete={() => {
+            setQuestionRefreshTrigger(prev => prev + 1);
+            // Refresh questions for current subject
+            if (selectedSubject) {
+              loadQuestions(selectedSubject.id);
+            }
+          }}
+        />
       </div>
     </div>
   );

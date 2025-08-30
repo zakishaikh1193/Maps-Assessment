@@ -1518,6 +1518,427 @@ export const getStudentCompetencyScores = async (req, res) => {
   }
 };
 
+// Import students from CSV
+export const importStudentsFromCSV = async (req, res) => {
+  try {
+    const { csvData } = req.body;
+    
+    if (!csvData || !Array.isArray(csvData) || csvData.length === 0) {
+      return res.status(400).json({
+        error: 'CSV data is required and must be an array',
+        code: 'INVALID_CSV_DATA'
+      });
+    }
+
+    const results = {
+      success: [],
+      errors: [],
+      summary: {
+        total: csvData.length,
+        successful: 0,
+        failed: 0
+      }
+    };
+
+    // Get all schools and grades for matching
+    const schools = await executeQuery('SELECT id, name FROM schools');
+    const grades = await executeQuery('SELECT id, display_name FROM grades');
+
+    // Create lookup maps
+    const schoolMap = new Map();
+    const gradeMap = new Map();
+    
+    schools.forEach(school => {
+      // Store both exact match and normalized versions
+      schoolMap.set(school.name.toLowerCase().trim(), school.id);
+      schoolMap.set(school.name.trim(), school.id);
+    });
+    
+    grades.forEach(grade => {
+      // Store both exact match and normalized versions
+      gradeMap.set(grade.display_name.toLowerCase().trim(), grade.id);
+      gradeMap.set(grade.display_name.trim(), grade.id);
+    });
+
+    // Process each row
+    for (let i = 0; i < csvData.length; i++) {
+      const row = csvData[i];
+      const rowNumber = i + 1; // 1-based row number for error reporting
+      
+      try {
+        // Validate required fields
+        if (!row.firstName || !row.lastName || !row.username || !row.password) {
+          results.errors.push({
+            row: rowNumber,
+            error: 'Missing required fields: firstName, lastName, username, and password are required',
+            data: row
+          });
+          results.summary.failed++;
+          continue;
+        }
+
+        // Clean and validate data
+        const firstName = row.firstName.trim();
+        const lastName = row.lastName.trim();
+        const username = row.username.trim();
+        const password = row.password.trim();
+        const schoolName = row.school ? row.school.trim() : '';
+        const gradeName = row.grade ? row.grade.trim() : '';
+
+        // Validate username uniqueness
+        const existingUser = await executeQuery(
+          'SELECT id FROM users WHERE username = ?',
+          [username]
+        );
+
+        if (existingUser.length > 0) {
+          results.errors.push({
+            row: rowNumber,
+            error: `Username '${username}' already exists`,
+            data: row
+          });
+          results.summary.failed++;
+          continue;
+        }
+
+        // Find school ID
+        let schoolId = null;
+        if (schoolName) {
+          const normalizedSchoolName = schoolName.toLowerCase();
+          schoolId = schoolMap.get(normalizedSchoolName) || schoolMap.get(schoolName);
+          
+          if (!schoolId) {
+            // Try fuzzy matching
+            const fuzzyMatch = schools.find(school => 
+              school.name.toLowerCase().includes(normalizedSchoolName) ||
+              normalizedSchoolName.includes(school.name.toLowerCase())
+            );
+            if (fuzzyMatch) {
+              schoolId = fuzzyMatch.id;
+            }
+          }
+        }
+
+        // Find grade ID
+        let gradeId = null;
+        if (gradeName) {
+          const normalizedGradeName = gradeName.toLowerCase();
+          gradeId = gradeMap.get(normalizedGradeName) || gradeMap.get(gradeName);
+          
+          if (!gradeId) {
+            // Try fuzzy matching for common grade patterns
+            const fuzzyMatch = grades.find(grade => {
+              const gradeLower = grade.display_name.toLowerCase();
+              return gradeLower.includes(normalizedGradeName) ||
+                     normalizedGradeName.includes(gradeLower) ||
+                     gradeLower.replace(/\s+/g, '') === normalizedGradeName.replace(/\s+/g, '');
+            });
+            if (fuzzyMatch) {
+              gradeId = fuzzyMatch.id;
+            }
+          }
+        }
+
+        // Create user
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        const insertResult = await executeQuery(
+          'INSERT INTO users (username, password, first_name, last_name, role, school_id, grade_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [username, hashedPassword, firstName, lastName, 'student', schoolId, gradeId]
+        );
+
+        const newUserId = insertResult.insertId;
+
+        results.success.push({
+          row: rowNumber,
+          userId: newUserId,
+          username,
+          firstName,
+          lastName,
+          schoolId,
+          gradeId,
+          schoolName: schoolId ? schools.find(s => s.id === schoolId)?.name : null,
+          gradeName: gradeId ? grades.find(g => g.id === gradeId)?.display_name : null
+        });
+
+        results.summary.successful++;
+
+      } catch (error) {
+        console.error(`Error processing row ${rowNumber}:`, error);
+        results.errors.push({
+          row: rowNumber,
+          error: error.message || 'Unknown error occurred',
+          data: row
+        });
+        results.summary.failed++;
+      }
+    }
+
+    res.json({
+      message: 'CSV import completed',
+      results
+    });
+
+  } catch (error) {
+    console.error('Error importing students from CSV:', error);
+    res.status(500).json({
+      error: 'Failed to import students from CSV',
+      code: 'CSV_IMPORT_ERROR'
+    });
+  }
+};
+
+// Import questions from CSV
+export const importQuestionsFromCSV = async (req, res) => {
+  try {
+    const { csvData } = req.body;
+    const userId = req.user.id;
+    
+    if (!csvData || !Array.isArray(csvData) || csvData.length === 0) {
+      return res.status(400).json({
+        error: 'CSV data is required and must be an array',
+        code: 'INVALID_CSV_DATA'
+      });
+    }
+
+    const results = {
+      success: [],
+      errors: [],
+      summary: {
+        total: csvData.length,
+        successful: 0,
+        failed: 0
+      }
+    };
+
+    // Get all subjects, grades, and competencies for matching
+    const subjects = await executeQuery('SELECT id, name FROM subjects');
+    const grades = await executeQuery('SELECT id, display_name FROM grades');
+    const competencies = await executeQuery('SELECT id, code FROM competencies WHERE is_active = 1');
+
+    // Create lookup maps
+    const subjectMap = new Map();
+    const gradeMap = new Map();
+    const competencyMap = new Map();
+    
+    subjects.forEach(subject => {
+      subjectMap.set(subject.name.toLowerCase().trim(), subject.id);
+      subjectMap.set(subject.name.trim(), subject.id);
+    });
+    
+    grades.forEach(grade => {
+      gradeMap.set(grade.display_name.toLowerCase().trim(), grade.id);
+      gradeMap.set(grade.display_name.trim(), grade.id);
+    });
+    
+    competencies.forEach(competency => {
+      competencyMap.set(competency.code.trim(), competency.id);
+    });
+
+    // Process each row
+    for (let i = 0; i < csvData.length; i++) {
+      const row = csvData[i];
+      const rowNumber = i + 1; // 1-based row number for error reporting
+      
+      try {
+        // Validate required fields
+        if (!row.subject || !row.grade || !row.questionText || !row.correctAnswer || !row.difficultyLevel) {
+          results.errors.push({
+            row: rowNumber,
+            error: 'Missing required fields: subject, grade, questionText, correctAnswer, and difficultyLevel are required',
+            data: row
+          });
+          results.summary.failed++;
+          continue;
+        }
+
+        // Validate options
+        if (!row.optionA || !row.optionB || !row.optionC || !row.optionD) {
+          results.errors.push({
+            row: rowNumber,
+            error: 'Missing required options: optionA, optionB, optionC, and optionD are required',
+            data: row
+          });
+          results.summary.failed++;
+          continue;
+        }
+
+        // Clean and validate data
+        const subjectName = row.subject.trim();
+        const gradeName = row.grade.trim();
+        const questionText = row.questionText.trim();
+        const optionA = row.optionA.trim();
+        const optionB = row.optionB.trim();
+        const optionC = row.optionC.trim();
+        const optionD = row.optionD.trim();
+        const correctAnswer = row.correctAnswer.trim().toUpperCase();
+        const difficultyLevel = parseInt(row.difficultyLevel);
+
+        // Extract competency codes - handle both single and multiple codes
+        const competencyCodes = [];
+        if (row.competencyCodes) {
+          // Split by comma and clean each code
+          const codes = row.competencyCodes.split(',').map(code => code.trim()).filter(code => code);
+          competencyCodes.push(...codes);
+        }
+
+        // Validate correct answer format
+        if (!['A', 'B', 'C', 'D'].includes(correctAnswer)) {
+          results.errors.push({
+            row: rowNumber,
+            error: `Invalid correct answer: '${correctAnswer}'. Must be A, B, C, or D`,
+            data: row
+          });
+          results.summary.failed++;
+          continue;
+        }
+
+        // Validate difficulty level
+        if (isNaN(difficultyLevel) || difficultyLevel < 100 || difficultyLevel > 350) {
+          results.errors.push({
+            row: rowNumber,
+            error: `Invalid difficulty level: ${row.difficultyLevel}. Must be between 100 and 350`,
+            data: row
+          });
+          results.summary.failed++;
+          continue;
+        }
+
+        // Find subject ID
+        const normalizedSubjectName = subjectName.toLowerCase();
+        let subjectId = subjectMap.get(normalizedSubjectName) || subjectMap.get(subjectName);
+        
+        if (!subjectId) {
+          // Try fuzzy matching
+          const fuzzyMatch = subjects.find(subject => 
+            subject.name.toLowerCase().includes(normalizedSubjectName) ||
+            normalizedSubjectName.includes(subject.name.toLowerCase())
+          );
+          if (fuzzyMatch) {
+            subjectId = fuzzyMatch.id;
+          }
+        }
+
+        if (!subjectId) {
+          results.errors.push({
+            row: rowNumber,
+            error: `Subject not found: '${subjectName}'`,
+            data: row
+          });
+          results.summary.failed++;
+          continue;
+        }
+
+        // Find grade ID
+        const normalizedGradeName = gradeName.toLowerCase();
+        let gradeId = gradeMap.get(normalizedGradeName) || gradeMap.get(gradeName);
+        
+        if (!gradeId) {
+          // Try fuzzy matching for common grade patterns
+          const fuzzyMatch = grades.find(grade => {
+            const gradeLower = grade.display_name.toLowerCase();
+            return gradeLower.includes(normalizedGradeName) ||
+                   normalizedGradeName.includes(gradeLower) ||
+                   gradeLower.replace(/\s+/g, '') === normalizedGradeName.replace(/\s+/g, '');
+          });
+          if (fuzzyMatch) {
+            gradeId = fuzzyMatch.id;
+          }
+        }
+
+        if (!gradeId) {
+          results.errors.push({
+            row: rowNumber,
+            error: `Grade not found: '${gradeName}'`,
+            data: row
+          });
+          results.summary.failed++;
+          continue;
+        }
+
+        // Convert correct answer to index
+        const correctOptionIndex = correctAnswer === 'A' ? 0 : 
+                                  correctAnswer === 'B' ? 1 : 
+                                  correctAnswer === 'C' ? 2 : 3;
+
+        // Create options array
+        const options = [optionA, optionB, optionC, optionD];
+
+        // Insert question
+        const insertResult = await executeQuery(
+          'INSERT INTO questions (subject_id, grade_id, question_text, options, correct_option_index, difficulty_level, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [subjectId, gradeId, questionText, JSON.stringify(options), correctOptionIndex, difficultyLevel, userId]
+        );
+
+        const newQuestionId = insertResult.insertId;
+
+        // Process competency codes and create relationships
+        const competencyIds = [];
+        const foundCompetencies = [];
+        const notFoundCompetencies = [];
+
+        for (const code of competencyCodes) {
+          const competencyId = competencyMap.get(code);
+          if (competencyId) {
+            competencyIds.push(competencyId);
+            foundCompetencies.push(code);
+          } else {
+            notFoundCompetencies.push(code);
+          }
+        }
+
+        // Insert competency relationships with equal weight distribution
+        if (competencyIds.length > 0) {
+          const weightPerCompetency = 100 / competencyIds.length; // Distribute weight equally
+          
+          for (const competencyId of competencyIds) {
+            await executeQuery(
+              'INSERT INTO questions_competencies (question_id, competency_id, weight) VALUES (?, ?, ?)',
+              [newQuestionId, competencyId, weightPerCompetency]
+            );
+          }
+        }
+
+        results.success.push({
+          row: rowNumber,
+          questionId: newQuestionId,
+          questionText,
+          subjectName: subjects.find(s => s.id === subjectId)?.name,
+          gradeName: grades.find(g => g.id === gradeId)?.display_name,
+          correctAnswer,
+          difficultyLevel,
+          competencyCount: competencyIds.length,
+          foundCompetencies,
+          notFoundCompetencies
+        });
+
+        results.summary.successful++;
+
+      } catch (error) {
+        console.error(`Error processing row ${rowNumber}:`, error);
+        results.errors.push({
+          row: rowNumber,
+          error: error.message || 'Unknown error occurred',
+          data: row
+        });
+        results.summary.failed++;
+      }
+    }
+
+    res.json({
+      message: 'CSV import completed',
+      results
+    });
+
+  } catch (error) {
+    console.error('Error importing questions from CSV:', error);
+    res.status(500).json({
+      error: 'Failed to import questions from CSV',
+      code: 'CSV_IMPORT_ERROR'
+    });
+  }
+};
+
 // Get student competency growth for admin
 export const getStudentCompetencyGrowth = async (req, res) => {
   try {

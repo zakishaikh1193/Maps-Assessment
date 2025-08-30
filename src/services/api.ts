@@ -122,6 +122,11 @@ export const adminAPI = {
     return response.data;
   },
 
+  importQuestionsFromCSV: async (csvData: any[]) => {
+    const response = await api.post('/admin/questions/import-csv', { csvData });
+    return response.data;
+  },
+
   getStats: async (): Promise<AdminStats> => {
     const response = await api.get('/admin/stats');
     return response.data;
@@ -376,6 +381,11 @@ export const studentsAPI = {
 
   getBySchoolAndGrade: async (schoolId: number, gradeId: number) => {
     const response = await api.get(`/admin/students/school/${schoolId}/grade/${gradeId}`);
+    return response.data;
+  },
+
+  importFromCSV: async (csvData: any[]) => {
+    const response = await api.post('/admin/students/import-csv', { csvData });
     return response.data;
   }
 };

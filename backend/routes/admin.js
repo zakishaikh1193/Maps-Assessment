@@ -19,7 +19,9 @@ import {
   getCompetencyMasteryReport,
   getCompetencyGrowthTracking,
   getStudentCompetencyScores,
-  getStudentCompetencyGrowth
+  getStudentCompetencyGrowth,
+  importStudentsFromCSV,
+  importQuestionsFromCSV
 } from '../controllers/adminController.js';
 import { authenticateToken, adminOnly } from '../middleware/auth.js';
 import { validateId, validateSubjectId, validateQuestion, validateBulkQuestions, validateStudent } from '../middleware/validation.js';
@@ -40,6 +42,7 @@ router.get('/students/school/:schoolId/grade/:gradeId', getStudentsBySchoolAndGr
 
 // Student management
 router.post('/students', validateStudent, createStudent);
+router.post('/students/import-csv', importStudentsFromCSV);
 router.put('/students/:id', validateId, updateStudent);
 router.delete('/students/:id', validateId, deleteStudent);
 
@@ -59,6 +62,7 @@ router.get('/student-competency-growth', getStudentCompetencyGrowth);
 // Questions
 router.post('/questions', validateQuestion, createQuestion);
 router.post('/questions/bulk', validateBulkQuestions, createBulkQuestions);
+router.post('/questions/import-csv', importQuestionsFromCSV);
 router.get('/questions/:subjectId', validateSubjectId, getQuestionsBySubject);
 router.get('/question/:id', validateId, getQuestionById);
 router.put('/questions/:id', validateId, validateQuestion, updateQuestion);
