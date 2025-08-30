@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { User, Subject, Question, Assessment, AssessmentResponse, DashboardData, AdminStats, School, Grade, AssessmentConfiguration, Competency, CompetencyStats } from '../types';
+import { User, Subject, Question, Assessment, AssessmentResponse, DashboardData, AdminStats, School, Grade, AssessmentConfiguration, Competency, CompetencyStats, PaginationInfo } from '../types';
 
 // const API_BASE_URL = 'https://map-test.bylinelms.com/api';
 const API_BASE_URL = 'http://localhost:5000/api';
@@ -94,8 +94,14 @@ export const adminAPI = {
     return response.data;
   },
 
-  getQuestions: async (subjectId: number): Promise<Question[]> => {
-    const response = await api.get(`/admin/questions/${subjectId}`);
+  getQuestions: async (subjectId: number, page: number = 1, limit: number = 20, gradeId?: number | null): Promise<{ questions: Question[], pagination: PaginationInfo }> => {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    if (gradeId !== null && gradeId !== undefined) {
+      params.append('gradeId', gradeId.toString());
+    }
+    const response = await api.get(`/admin/questions/${subjectId}?${params}`);
     return response.data;
   },
 

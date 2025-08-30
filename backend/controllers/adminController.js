@@ -566,10 +566,16 @@ export const getQuestionById = async (req, res) => {
   }
 };
 
-// Get questions by subject
+// Get questions by subject with pagination
 export const getQuestionsBySubject = async (req, res) => {
   try {
     const { subjectId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+    const gradeId = req.query.gradeId && req.query.gradeId !== 'null' ? parseInt(req.query.gradeId) : null;
+    
+    console.log(`Pagination params: page=${page}, limit=${limit}, offset=${offset}, gradeId=${gradeId}, raw gradeId from query: ${req.query.gradeId}`);
 
     // Check if subject exists
     const subjects = await executeQuery(
@@ -584,8 +590,38 @@ export const getQuestionsBySubject = async (req, res) => {
       });
     }
 
-    // Get questions with creator info and grade info
-    const questions = await executeQuery(`
+    // Get total count of questions for this subject (with grade filter)
+    let countQuery = `
+      SELECT COUNT(*) as total
+      FROM questions q
+      WHERE q.subject_id = ?
+    `;
+    let countParams = [subjectId];
+    
+    if (gradeId) {
+      countQuery += ` AND q.grade_id = ?`;
+      countParams.push(gradeId);
+    }
+    
+    const countResult = await executeQuery(countQuery, countParams);
+
+    const totalQuestions = countResult[0].total;
+    const totalPages = Math.ceil(totalQuestions / limit);
+
+    // Debug: Check what grades exist for this subject
+    const gradeCheck = await executeQuery(`
+      SELECT DISTINCT q.grade_id, g.display_name, COUNT(*) as question_count
+      FROM questions q
+      LEFT JOIN grades g ON q.grade_id = g.id
+      WHERE q.subject_id = ?
+      GROUP BY q.grade_id, g.display_name
+      ORDER BY q.grade_id
+    `, [subjectId]);
+    
+    console.log('Available grades for this subject:', gradeCheck);
+
+    // Get questions with creator info and grade info (paginated with grade filter)
+    let questionsQuery = `
       SELECT 
         q.id,
         q.subject_id,
@@ -601,12 +637,25 @@ export const getQuestionsBySubject = async (req, res) => {
       LEFT JOIN users u ON q.created_by = u.id
       LEFT JOIN grades g ON q.grade_id = g.id
       WHERE q.subject_id = ?
-      ORDER BY q.created_at DESC
-    `, [subjectId]);
+    `;
+    let questionsParams = [subjectId];
+    
+    if (gradeId) {
+      questionsQuery += ` AND q.grade_id = ?`;
+      questionsParams.push(gradeId);
+    }
+    
+    questionsQuery += ` ORDER BY q.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+    
+    const questions = await executeQuery(questionsQuery, questionsParams);
 
-    console.log(`Found ${questions.length} questions for subject ${subjectId}`);
+    console.log(`Found ${questions.length} questions for subject ${subjectId} (page ${page})`);
     if (questions.length > 0) {
       console.log('First question:', questions[0]);
+      console.log('Sample questions with grade info:');
+      questions.slice(0, 3).forEach((q, i) => {
+        console.log(`Question ${i + 1}: grade_id=${q.grade_id}, grade_name=${q.grade_name}`);
+      });
     }
 
     // Parse options JSON and transform field names
@@ -635,7 +684,17 @@ export const getQuestionsBySubject = async (req, res) => {
       };
     });
 
-    res.json(formattedQuestions);
+    res.json({
+      questions: formattedQuestions,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalQuestions,
+        questionsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+      }
+    });
 
   } catch (error) {
     console.error('Error fetching questions:', error);
@@ -1266,7 +1325,7 @@ export const getCompetencyMasteryReport = async (req, res) => {
       params.push(year);
     }
 
-    // Competency mastery by competency
+    // Competency mastery by competency (latest assessment only)
     const competencyMastery = await executeQuery(`
       SELECT 
         c.id as competency_id,
@@ -1281,12 +1340,23 @@ export const getCompetencyMasteryReport = async (req, res) => {
       JOIN assessments a ON scs.assessment_id = a.id
       JOIN users u ON a.student_id = u.id
       JOIN competencies c ON scs.competency_id = c.id
+      JOIN (
+        SELECT 
+          student_id, 
+          subject_id, 
+          MAX(date_taken) as latest_date
+        FROM assessments 
+        WHERE rit_score IS NOT NULL
+        GROUP BY student_id, subject_id
+      ) latest_assessments ON a.student_id = latest_assessments.student_id 
+        AND a.subject_id = latest_assessments.subject_id 
+        AND a.date_taken = latest_assessments.latest_date
       ${whereClause}
       GROUP BY c.id, c.code, c.name
       ORDER BY average_score ASC
     `, params);
 
-    // Competency mastery by school (overall average per school)
+    // Competency mastery by school (overall average per school - latest assessment only)
     const schoolCompetencyMastery = await executeQuery(`
       SELECT 
         s.id as school_id,
@@ -1297,12 +1367,23 @@ export const getCompetencyMasteryReport = async (req, res) => {
       JOIN assessments a ON scs.assessment_id = a.id
       JOIN users u ON a.student_id = u.id
       JOIN schools s ON u.school_id = s.id
+      JOIN (
+        SELECT 
+          student_id, 
+          subject_id, 
+          MAX(date_taken) as latest_date
+        FROM assessments 
+        WHERE rit_score IS NOT NULL
+        GROUP BY student_id, subject_id
+      ) latest_assessments ON a.student_id = latest_assessments.student_id 
+        AND a.subject_id = latest_assessments.subject_id 
+        AND a.date_taken = latest_assessments.latest_date
       ${whereClause}
       GROUP BY s.id, s.name
       ORDER BY s.name
     `, params);
 
-    // Competency mastery by grade (overall average per grade)
+    // Competency mastery by grade (overall average per grade - latest assessment only)
     const gradeCompetencyMastery = await executeQuery(`
       SELECT 
         g.id as grade_id,
@@ -1313,11 +1394,32 @@ export const getCompetencyMasteryReport = async (req, res) => {
       JOIN assessments a ON scs.assessment_id = a.id
       JOIN users u ON a.student_id = u.id
       JOIN grades g ON u.grade_id = g.id
+      JOIN (
+        SELECT 
+          student_id, 
+          subject_id, 
+          MAX(date_taken) as latest_date
+        FROM assessments 
+        WHERE rit_score IS NOT NULL
+        GROUP BY student_id, subject_id
+      ) latest_assessments ON a.student_id = latest_assessments.student_id 
+        AND a.subject_id = latest_assessments.subject_id 
+        AND a.date_taken = latest_assessments.latest_date
       ${whereClause}
       GROUP BY g.id, g.display_name
       ORDER BY g.display_name
     `, params);
 
+    // Debug: Check what competencies exist
+    const competencyCheck = await executeQuery(`
+      SELECT id, code, name FROM competencies ORDER BY id
+    `);
+    console.log('Available competencies:', competencyCheck);
+    
+    console.log('Competency Mastery Data:', competencyMastery);
+    console.log('School Competency Mastery Data:', schoolCompetencyMastery);
+    console.log('Grade Competency Mastery Data:', gradeCompetencyMastery);
+    
     res.json({
       competencyMastery,
       schoolCompetencyMastery,

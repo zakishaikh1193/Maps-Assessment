@@ -32,6 +32,12 @@ const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalQuestions, setTotalQuestions] = useState(0);
+  const [selectedGradeFilter, setSelectedGradeFilter] = useState<number | null>(null);
+  
   // Growth chart states
   const [activeTab, setActiveTab] = useState<'students' | 'questions' | 'growth' | 'subjects' | 'schools' | 'grades' | 'configs' | 'competencies' | 'performance' | 'competency-analytics'>('students');
   const [students, setStudents] = useState<Array<{id: number, username: string, firstName?: string, lastName?: string}>>([]);
@@ -82,9 +88,12 @@ const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     if (selectedSubject) {
-      loadQuestions(selectedSubject.id);
+      setSelectedGradeFilter(null); // Reset grade filter when subject changes
+      loadQuestions(selectedSubject.id, 1);
     }
   }, [selectedSubject]);
+
+
 
   // Load growth data when student and subject are selected
   useEffect(() => {
@@ -191,10 +200,31 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const loadQuestions = async (subjectId: number) => {
+  const loadQuestions = async (subjectId: number, page: number = 1) => {
+    return loadQuestionsWithGrade(subjectId, page, selectedGradeFilter);
+  };
+
+  const handlePageChange = (page: number) => {
+    if (selectedSubject) {
+      loadQuestions(selectedSubject.id, page);
+    }
+  };
+
+  const handleGradeChange = (gradeId: number | null) => {
+    setSelectedGradeFilter(gradeId);
+    if (selectedSubject) {
+      // Pass the gradeId directly instead of relying on state
+      loadQuestionsWithGrade(selectedSubject.id, 1, gradeId);
+    }
+  };
+
+  const loadQuestionsWithGrade = async (subjectId: number, page: number = 1, gradeId: number | null = null) => {
     try {
-      const questionsData = await adminAPI.getQuestions(subjectId);
-      setQuestions(questionsData);
+      const response = await adminAPI.getQuestions(subjectId, page, 20, gradeId);
+      setQuestions(response.questions);
+      setCurrentPage(response.pagination.currentPage);
+      setTotalPages(response.pagination.totalPages);
+      setTotalQuestions(response.pagination.totalQuestions);
     } catch (error) {
       console.error('Failed to load questions:', error);
     }
@@ -203,7 +233,7 @@ const AdminDashboard: React.FC = () => {
   const handleQuestionCreated = () => {
     setShowQuestionForm(false);
     if (selectedSubject) {
-      loadQuestions(selectedSubject.id);
+      loadQuestions(selectedSubject.id, 1);
     }
     loadInitialData(); // Refresh stats
   };
@@ -212,13 +242,13 @@ const AdminDashboard: React.FC = () => {
     setEditingQuestion(null);
     setShowQuestionForm(false);
     if (selectedSubject) {
-      loadQuestions(selectedSubject.id);
+      loadQuestions(selectedSubject.id, 1);
     }
   };
 
   const handleQuestionDeleted = () => {
     if (selectedSubject) {
-      loadQuestions(selectedSubject.id);
+      loadQuestions(selectedSubject.id, 1);
     }
     loadInitialData(); // Refresh stats
   };
@@ -507,9 +537,6 @@ const AdminDashboard: React.FC = () => {
                       }`}
                     >
                       <div className="font-medium">{subject.name}</div>
-                      <div className="text-sm text-gray-500">
-                        {questions.filter(q => selectedSubject?.id === subject.id).length} questions
-                      </div>
                     </button>
                   ))}
                 </div>
@@ -570,6 +597,12 @@ const AdminDashboard: React.FC = () => {
                     questions={questions}
                     onEdit={handleEditQuestion}
                     onDelete={handleQuestionDeleted}
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalQuestions={totalQuestions}
+                    onPageChange={handlePageChange}
+                    selectedGrade={selectedGradeFilter}
+                    onGradeChange={handleGradeChange}
                   />
                 </>
               )}
@@ -941,7 +974,7 @@ const AdminDashboard: React.FC = () => {
             setQuestionRefreshTrigger(prev => prev + 1);
             // Refresh questions for current subject
             if (selectedSubject) {
-              loadQuestions(selectedSubject.id);
+              loadQuestions(selectedSubject.id, 1);
             }
           }}
         />

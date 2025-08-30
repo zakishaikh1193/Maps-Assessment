@@ -231,8 +231,8 @@ export const startAssessment = async (req, res) => {
     
     // Create assessment record with current year and configuration
     const result = await executeQuery(
-      'INSERT INTO assessments (student_id, subject_id, assessment_period, year, total_questions, time_limit_minutes) VALUES (?, ?, ?, ?, ?, ?)',
-      [studentId, subjectId, period, currentYear, questionCount, timeLimitMinutes]
+      'INSERT INTO assessments (student_id, subject_id, grade_id, assessment_period, year, total_questions, time_limit_minutes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [studentId, subjectId, studentGradeId, period, currentYear, questionCount, timeLimitMinutes]
     );
 
     // Initialize session with MAP adaptive tracking

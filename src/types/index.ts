@@ -41,6 +41,15 @@ export interface Grade {
   created_at?: string;
 }
 
+export interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalQuestions: number;
+  questionsPerPage: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
 export interface Question {
   id: number;
   subjectId: number;
