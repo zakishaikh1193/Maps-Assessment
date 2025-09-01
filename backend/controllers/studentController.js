@@ -360,8 +360,14 @@ export const submitAnswer = async (req, res) => {
     // Check time limit
     const elapsedMinutes = Math.round((Date.now() - session.startTime) / 60000);
     if (elapsedMinutes >= session.timeLimitMinutes) {
-      const ritScore = question.difficulty_level; // Use last question's difficulty
       const duration = elapsedMinutes;
+
+      // Calculate average difficulty across all attempted questions in this assessment
+      const avgResult = await executeQuery(
+        'SELECT AVG(question_difficulty) as avg_difficulty FROM assessment_responses WHERE assessment_id = ?',
+        [assessmentId]
+      );
+      const ritScore = Math.round(avgResult[0].avg_difficulty || question.difficulty_level);
 
       // Calculate correct answers count
       const correctAnswersResult = await executeQuery(
@@ -381,6 +387,7 @@ export const submitAnswer = async (req, res) => {
 
       return res.json({
         completed: true,
+        isCorrect,
         assessmentId: assessmentId,
         message: `Assessment completed! Time limit reached. Your RIT score is ${ritScore}`
       });
@@ -388,8 +395,14 @@ export const submitAnswer = async (req, res) => {
 
     // Check if assessment is complete (dynamic question count)
     if (session.questionCount >= session.maxQuestions) {
-      const ritScore = question.difficulty_level; // Use last question's difficulty
       const duration = Math.round((Date.now() - session.startTime) / 60000); // minutes
+
+      // Calculate average difficulty across all attempted questions in this assessment
+      const avgResult = await executeQuery(
+        'SELECT AVG(question_difficulty) as avg_difficulty FROM assessment_responses WHERE assessment_id = ?',
+        [assessmentId]
+      );
+      const ritScore = Math.round(avgResult[0].avg_difficulty || question.difficulty_level);
 
       // Calculate correct answers count
       const correctAnswersResult = await executeQuery(
@@ -409,6 +422,7 @@ export const submitAnswer = async (req, res) => {
 
       return res.json({
         completed: true,
+        isCorrect,
         assessmentId: assessmentId,
         message: `Assessment completed! Your RIT score is ${ritScore}`
       });
@@ -419,8 +433,14 @@ export const submitAnswer = async (req, res) => {
 
     if (!nextQuestion) {
       // No more questions available, complete the assessment
-      const ritScore = question.difficulty_level; // Use last question's difficulty
       const duration = Math.round((Date.now() - session.startTime) / 60000);
+
+      // Calculate average difficulty across all attempted questions in this assessment
+      const avgResult = await executeQuery(
+        'SELECT AVG(question_difficulty) as avg_difficulty FROM assessment_responses WHERE assessment_id = ?',
+        [assessmentId]
+      );
+      const ritScore = Math.round(avgResult[0].avg_difficulty || question.difficulty_level);
 
       // Calculate correct answers count
       const correctAnswersResult = await executeQuery(
@@ -440,6 +460,7 @@ export const submitAnswer = async (req, res) => {
 
       return res.json({
         completed: true,
+        isCorrect,
         assessmentId: assessmentId,
         message: `Assessment completed! No more questions available. Your RIT score is ${ritScore}`
       });

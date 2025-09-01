@@ -103,8 +103,8 @@ const AssessmentPage: React.FC = () => {
         assessmentId
       );
 
-      // Show feedback
-      setFeedback({ isCorrect: response.isCorrect, show: true });
+      // Show feedback (ensure we show the actual correctness for this submission)
+      setFeedback({ isCorrect: response.isCorrect === true, show: true });
 
       // Wait for feedback display, then continue
       setTimeout(async () => {
@@ -297,7 +297,7 @@ const AssessmentPage: React.FC = () => {
           <p className="text-sm text-blue-800">
             💡 <strong>MAP Adaptive Testing:</strong> This assessment adapts to your performance. 
             Answer correctly to get harder questions, incorrectly for easier ones. 
-            Your RIT score is based on the highest difficulty level you answer correctly.
+            Your RIT score is calculated as the average of the difficulties of all questions you attempted.
           </p>
         </div>
       </div>
