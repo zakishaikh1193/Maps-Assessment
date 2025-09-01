@@ -99,7 +99,7 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'growth' && selectedStudent && selectedSubject) {
       setGrowthLoading(true);
-      setGrowthData(null); // Reset data when selections change
+      setGrowthData(null);
       adminAPI.getStudentGrowth(selectedStudent, selectedSubject.id)
         .then(data => {
           setGrowthData(data);
@@ -235,7 +235,7 @@ const AdminDashboard: React.FC = () => {
     if (selectedSubject) {
       loadQuestions(selectedSubject.id, 1);
     }
-    loadInitialData(); // Refresh stats
+    loadInitialData();
   };
 
   const handleQuestionUpdated = () => {
@@ -250,7 +250,7 @@ const AdminDashboard: React.FC = () => {
     if (selectedSubject) {
       loadQuestions(selectedSubject.id, 1);
     }
-    loadInitialData(); // Refresh stats
+    loadInitialData();
   };
 
   // Subjects management functions
@@ -301,13 +301,11 @@ const AdminDashboard: React.FC = () => {
 
   const handleEditQuestion = async (question: Question) => {
     try {
-      // Fetch fresh question data from server
       const freshQuestion = await adminAPI.getQuestion(question.id);
       setEditingQuestion(freshQuestion);
       setShowQuestionForm(true);
     } catch (error) {
       console.error('Failed to fetch question for editing:', error);
-      // Fallback to using the question from the list
       setEditingQuestion(question);
       setShowQuestionForm(true);
     }
@@ -320,65 +318,104 @@ const AdminDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
         <Navigation />
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="flex flex-col items-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent"></div>
+            <p className="text-white/80">Loading dashboard...</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <Navigation />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
+      </div>
+      
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-          <p className="text-gray-600">Manage questions and view assessment statistics</p>
+          <div className="flex items-center space-x-4 mb-4">
+            <div className="p-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-2xl shadow-lg">
+              <Brain className="h-8 w-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold text-white mb-2">
+                Admin Command Center
+              </h1>
+              <p className="text-purple-200 text-lg">
+                Manage assessments and analyze student performance
+              </p>
+            </div>
+            <div className="ml-auto">
+              <Sparkles className="h-8 w-8 text-yellow-400 animate-pulse" />
+            </div>
+          </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Enhanced Stats Cards */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FileQuestion className="h-6 w-6 text-blue-600" />
+            <div className="group relative overflow-hidden bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-xl rounded-2xl border border-purple-500/30 p-6 hover:border-purple-400/50 transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative flex items-center space-x-4">
+                <div className="p-3 bg-purple-500/20 rounded-xl border border-purple-400/30">
+                  <FileQuestion className="h-8 w-8 text-purple-300" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalQuestions}</p>
-                  <p className="text-gray-600">Total Questions</p>
+                  <p className="text-3xl font-bold text-white">{stats.totalQuestions}</p>
+                  <p className="text-purple-200">Total Questions</p>
+                  <div className="flex items-center space-x-1 mt-1">
+                    <Database className="h-4 w-4 text-purple-400" />
+                    <span className="text-xs text-purple-300">Active Database</span>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-emerald-100 rounded-lg">
-                  <Users className="h-6 w-6 text-emerald-600" />
+
+            <div className="group relative overflow-hidden bg-gradient-to-br from-blue-600/20 to-blue-800/20 backdrop-blur-xl rounded-2xl border border-blue-500/30 p-6 hover:border-blue-400/50 transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative flex items-center space-x-4">
+                <div className="p-3 bg-blue-500/20 rounded-xl border border-blue-400/30">
+                  <Users className="h-8 w-8 text-blue-300" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalStudents}</p>
-                  <p className="text-gray-600">Total Students</p>
+                  <p className="text-3xl font-bold text-white">{stats.totalStudents}</p>
+                  <p className="text-blue-200">Active Students</p>
+                  <div className="flex items-center space-x-1 mt-1">
+                    <Activity className="h-4 w-4 text-blue-400" />
+                    <span className="text-xs text-blue-300">Enrolled Users</span>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <BarChart3 className="h-6 w-6 text-purple-600" />
+
+            <div className="group relative overflow-hidden bg-gradient-to-br from-emerald-600/20 to-emerald-800/20 backdrop-blur-xl rounded-2xl border border-emerald-500/30 p-6 hover:border-emerald-400/50 transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative flex items-center space-x-4">
+                <div className="p-3 bg-emerald-500/20 rounded-xl border border-emerald-400/30">
+                  <Target className="h-8 w-8 text-emerald-300" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalAssessments}</p>
-                  <p className="text-gray-600">Assessments Taken</p>
+                  <p className="text-3xl font-bold text-white">{stats.totalAssessments}</p>
+                  <p className="text-emerald-200">Assessments Taken</p>
+                  <div className="flex items-center space-x-1 mt-1">
+                    <Zap className="h-4 w-4 text-emerald-400" />
+                    <span className="text-xs text-emerald-300">Completed Tests</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         )}
-
         {/* Tab Navigation */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1 mb-8">
           <div className="flex flex-wrap">
@@ -399,8 +436,8 @@ const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('questions')}
               className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'questions'
-                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg transform scale-[1.02]'
+                  : 'text-gray-300 hover:text-white hover:bg-white/10'
               }`}
             >
               <div className="flex items-center justify-center space-x-2">
@@ -412,8 +449,8 @@ const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('growth')}
               className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'growth'
-                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg transform scale-[1.02]'
+                  : 'text-gray-300 hover:text-white hover:bg-white/10'
               }`}
             >
               <div className="flex items-center justify-center space-x-2">
@@ -518,22 +555,22 @@ const AdminDashboard: React.FC = () => {
         {/* Questions Management Tab Content */}
         {activeTab === 'questions' && (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Subjects Sidebar */}
+            {/* Enhanced Subjects Sidebar */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                  <BookOpen className="h-5 w-5 text-blue-600" />
+              <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 shadow-2xl">
+                <h2 className="text-xl font-bold text-white mb-6 flex items-center space-x-3">
+                  <BookOpen className="h-6 w-6 text-purple-400" />
                   <span>Subjects</span>
                 </h2>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {subjects.map((subject) => (
                     <button
                       key={subject.id}
                       onClick={() => setSelectedSubject(subject)}
-                      className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${
+                      className={`w-full text-left px-4 py-4 rounded-xl transition-all duration-300 transform hover:scale-[1.02] ${
                         selectedSubject?.id === subject.id
-                          ? 'bg-blue-100 text-blue-900 border-2 border-blue-200'
-                          : 'text-gray-700 hover:bg-gray-50 border-2 border-transparent'
+                          ? 'bg-gradient-to-r from-purple-500/30 to-blue-500/30 text-white border-2 border-purple-400/50 shadow-lg'
+                          : 'text-gray-300 hover:bg-white/10 border-2 border-transparent hover:border-white/20'
                       }`}
                     >
                       <div className="font-medium">{subject.name}</div>
@@ -545,19 +582,20 @@ const AdminDashboard: React.FC = () => {
               {stats && <AdminStatsCard stats={stats} />}
             </div>
 
-            {/* Main Content */}
+            {/* Enhanced Main Content */}
             <div className="lg:col-span-3">
               {selectedSubject && (
                 <>
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
-                    <div className="p-6 border-b border-gray-100">
+                  <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 mb-6 shadow-2xl">
+                    <div className="p-6 border-b border-white/20">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h2 className="text-xl font-semibold text-gray-900">
-                            {selectedSubject.name} Questions
+                          <h2 className="text-2xl font-bold text-white flex items-center space-x-3">
+                            <Brain className="h-7 w-7 text-purple-400" />
+                            <span>{selectedSubject.name} Questions</span>
                           </h2>
-                          <p className="text-gray-600 mt-1">
-                            Manage questions for {selectedSubject.name} assessments
+                          <p className="text-purple-200 mt-2">
+                            Manage adaptive assessment questions for {selectedSubject.name}
                           </p>
                         </div>
                         <div className="flex space-x-3">
@@ -580,7 +618,7 @@ const AdminDashboard: React.FC = () => {
                     </div>
 
                     {showQuestionForm && (
-                      <div className="p-6 border-b border-gray-100 bg-gray-50">
+                      <div className="p-6 border-b border-white/20 bg-gradient-to-r from-purple-500/10 to-blue-500/10">
                         <QuestionForm
                           subjects={subjects}
                           selectedSubject={selectedSubject}
@@ -640,7 +678,6 @@ const AdminDashboard: React.FC = () => {
                     ))}
                   </select>
                 </div>
-
                 {/* Grade Filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
@@ -719,9 +756,10 @@ const AdminDashboard: React.FC = () => {
             <div>
               {selectedSubject && selectedStudent ? (
                 <div className="space-y-6">
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                      Student Growth Analysis
+                  <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 shadow-2xl">
+                    <h2 className="text-2xl font-bold text-white mb-3 flex items-center space-x-3">
+                      <BarChart3 className="h-7 w-7 text-emerald-400" />
+                      <span>Student Performance Analytics</span>
                     </h2>
                     <p className="text-gray-600">
                       {filteredStudents.find(s => s.id === selectedStudent)?.firstName || 'Student'} - {selectedSubject.name}
@@ -803,9 +841,14 @@ const AdminDashboard: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-8 shadow-2xl">
                   <div className="text-center">
-                    <p className="text-gray-600">Please select both a subject and a student to view growth analysis.</p>
+                    <div className="flex justify-center space-x-4 mb-6">
+                      <BookOpen className="h-12 w-12 text-purple-400" />
+                      <User className="h-12 w-12 text-emerald-400" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-white mb-2">Select Subject & Student</h3>
+                    <p className="text-gray-300">Choose both a subject and a student to view detailed growth analysis.</p>
                   </div>
                 </div>
               )}
