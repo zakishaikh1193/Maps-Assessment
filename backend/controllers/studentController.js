@@ -1259,3 +1259,68 @@ export const getCompetencyGrowth = async (req, res) => {
     });
   }
 };
+
+// Get assessment configuration for student's grade and subject
+export const getAssessmentConfiguration = async (req, res) => {
+  try {
+    const { gradeId, subjectId } = req.params;
+    const studentId = req.user.id;
+
+    // Verify the student has access to this grade-subject combination
+    const studentGrade = await executeQuery(
+      'SELECT grade_id FROM users WHERE id = ?',
+      [studentId]
+    );
+
+    if (studentGrade.length === 0) {
+      return res.status(404).json({
+        error: 'Student not found',
+        code: 'STUDENT_NOT_FOUND'
+      });
+    }
+
+    const studentGradeId = studentGrade[0].grade_id;
+
+    // Only allow access to configurations for the student's own grade
+    if (parseInt(gradeId) !== studentGradeId) {
+      return res.status(403).json({
+        error: 'Access denied to assessment configuration',
+        code: 'ACCESS_DENIED'
+      });
+    }
+
+    // Get assessment configuration
+    const configResult = await executeQuery(`
+      SELECT 
+        ac.id,
+        ac.grade_id as gradeId,
+        ac.subject_id as subjectId,
+        ac.time_limit_minutes as timeLimitMinutes,
+        ac.question_count as questionCount,
+        ac.is_active as isActive,
+        ac.created_at as createdAt,
+        ac.updated_at as updatedAt,
+        g.display_name as gradeName,
+        s.name as subjectName
+      FROM assessment_configurations ac
+      JOIN grades g ON ac.grade_id = g.id
+      JOIN subjects s ON ac.subject_id = s.id
+      WHERE ac.grade_id = ? AND ac.subject_id = ? AND ac.is_active = 1
+    `, [gradeId, subjectId]);
+
+    if (configResult.length === 0) {
+      return res.status(404).json({
+        error: 'Assessment configuration not found for this grade-subject combination',
+        code: 'CONFIGURATION_NOT_FOUND'
+      });
+    }
+
+    res.json(configResult[0]);
+  } catch (error) {
+    console.error('Error fetching assessment configuration:', error);
+    res.status(500).json({
+      error: 'Failed to fetch assessment configuration',
+      code: 'FETCH_CONFIG_ERROR'
+    });
+  }
+};

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { BarChart3, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { BarChart3, ArrowRight, Eye, EyeOff, AlertCircle, BookOpen, Target, Zap } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -36,112 +36,183 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans">
-      <div className="w-full max-w-4xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden md:flex">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-amber-50">
+      <div className="w-full max-w-6xl mx-auto flex  bg-amber-50 rounded-2xl shadow-2xl overflow-hidden border border-purple-300">
         
-        {/* Branding Panel */}
-        <div className="md:w-1/2 bg-gray-800 p-12 text-white flex flex-col justify-between bg-gradient-to-br from-gray-900 to-slate-800">
-          <div>
-            <div className="flex items-center space-x-3 mb-10">
-              <div className="p-3 bg-white bg-opacity-10 rounded-xl">
-                <BarChart3 className="h-7 w-7 text-white" />
+        {/* Left Panel - Content with Hot Pink Background */}
+        <div className="hidden lg:flex lg:w-1/2 bg-yellow-200 relative overflow-hidden">
+          {/* Content */}
+          <div className="flex items-center justify-center w-full">
+            <div className="text-center text-gray-800 p-16">
+              <div className="mb-12">
+                <div className="flex items-center justify-center space-x-3 mb-8">
+                  <div className="w-16 h-16 bg-gray-500 bg-opacity-25 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                    <BarChart3 className="h-8 w-8 text-gray-800" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-bold">MAP Assessment</h1>
+                    <p className=" text-gray-600 text-opacity-90 text-sm">Adaptive Learning Platform</p>
+                  </div>
+                </div>
+                
+                <h2 className="text-5xl font-bold mb-6 leading-tight">
+                  Unlock Student Potential
+                </h2>
+                <p className="text-gray-600 text-opacity-90 text-xl leading-relaxed mb-10 max-w-md mx-auto">
+                  Advanced adaptive assessments that grow with your students, providing insights that drive meaningful educational outcomes.
+                </p>
               </div>
-              <span className="text-xl font-bold">MAP Assessment</span>
+
+              <div className="space-y-6 max-w-sm mx-auto">
+                <div className="flex items-center space-x-4 bg-white bg-opacity-20 p-4 rounded-xl backdrop-blur-sm border border-pink-200">
+                  <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center">
+                    <Target className="h-6 w-6 text-gray-600" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-bold text-gray-600">Precision Testing</h3>
+                    <p className="text-gray-600 text-opacity-80 text-sm">Questions adapt to performance</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-4 bg-white bg-opacity-20 p-4 rounded-xl backdrop-blur-sm  border border-pink-200">
+                  <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center">
+                    <BookOpen className="h-6 w-6 text-gray-600" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-bold text-gray-600">Deep Analytics</h3>
+                    <p className="text-gray-600 text-opacity-80 text-sm">Comprehensive learning insights</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-4 bg-white bg-opacity-20 p-4 rounded-xl backdrop-blur-sm  border border-pink-200">
+                  <div className="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center">
+                    <Zap className="h-6 w-6 text-gray-600" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-bold text-gray-600">Real-time Results</h3>
+                    <p className="text-gray-600 text-opacity-80 text-sm">Instant feedback & tracking</p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <h1 className="text-4xl font-bold leading-tight mb-4">
-              Unlock Your Potential.
-            </h1>
-            <p className="text-slate-300">
-              Sign in to access your personalized, MAP styled assessment dashboard.
-            </p>
           </div>
         </div>
 
-        {/* Form Panel */}
-        <div className="w-full md:w-1/2 p-8 md:p-12">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Welcome Back</h2>
-          <p className="text-gray-500 mb-8">Sign in to continue</p>
-
-          {/* Demo Credentials Box */}
-          <div className="mb-6 p-4 bg-teal-50 rounded-lg border border-teal-200 text-sm">
-            <h3 className="font-semibold text-teal-900 mb-2">Demo Credentials:</h3>
-            <div className="text-teal-800 space-y-1">
-              <p><strong className="font-medium">Admin:</strong> admin / admin123</p>
-              <p><strong className="font-medium">Student:</strong> student1 / student123</p>
-            </div>
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-400 flex items-center space-x-3">
-              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
-              <span className="text-red-700 text-sm">{error}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-2">
-                Username
-              </label>
-              <input
-                type="text"
-                required
-                autoComplete="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition"
-                placeholder="Enter your username"
-              />
+        {/* Right Panel - Login Form */}
+        <div className="w-full lg:w-1/2 bg-amber-50 p-8 lg:p-16 flex items-center justify-center">
+          <div className="w-full max-w-md">
+            <div className="text-center mb-10">
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">Welcome Back</h1>
+              <p className="text-gray-600">Sign in to your assessment platform</p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition"
-                  placeholder="Enter your password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 px-4 flex items-center text-gray-400 hover:text-gray-600"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
+            {/* Demo Credentials */}
+            <div className="mb-8 p-5 bg-white rounded-xl border border-amber-200 shadow-sm">
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
+                <h3 className="font-semibold text-gray-800 text-sm">Demo Access</h3>
+              </div>
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Admin:</span>
+                  <code className="bg-amber-100 px-2 py-1 rounded text-gray-800 border border-amber-200">admin / admin123</code>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Student:</span>
+                  <code className="bg-amber-100 px-2 py-1 rounded text-gray-800 border border-amber-200">student1 / student123</code>
+                </div>
               </div>
             </div>
-            
-            <div className="flex items-center">
-                <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded" />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                    Remember me
-                </label>
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-teal-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center space-x-2"
-            >
-              {loading ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-              ) : (
-                <>
-                  <span>Sign In</span>
-                  <ArrowRight className="h-5 w-5" />
-                </>
-              )}
-            </button>
-          </form>
+            {/* Error Message */}
+            {error && (
+              <div className="mb-6 p-4 bg-pink-50 border border-pink-200 rounded-xl">
+                <div className="flex items-center space-x-3">
+                  <AlertCircle className="h-5 w-5 text-pink-500 flex-shrink-0" />
+                  <div>
+                    <h3 className="text-sm font-medium text-pink-800">Login Failed</h3>
+                    <p className="text-pink-700 text-sm mt-1">{error}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Login Form */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoComplete="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-amber-200 rounded-xl focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500 focus:ring-opacity-20 transition-colors"
+                  placeholder="Enter username"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full px-4 py-3 bg-white border border-amber-200 rounded-xl focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500 focus:ring-opacity-20 transition-colors pr-12"
+                    placeholder="Enter password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 px-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex items-center">
+                <input 
+                  id="remember-me" 
+                  name="remember-me" 
+                  type="checkbox" 
+                  className="h-4 w-4 text-teal-500 focus:ring-teal-500 border-amber-300 rounded" 
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+                  Remember me
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-yellow-300 to-yellow-500 text-gray-800 py-3 px-6 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center space-x-2"
+              >
+                {loading ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                ) : (
+                  <>
+                    <span>Sign In</span>
+                    <ArrowRight className="h-5 w-5" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-8 pt-6 border-t border-pink-500">
+              <p className="text-xs text-gray-500 text-center">
+                Secure educational assessment platform
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

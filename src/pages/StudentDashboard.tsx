@@ -1,15 +1,43 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Subject, DashboardData } from '../types';
+import { Subject, DashboardData, AssessmentConfiguration } from '../types';
 import { subjectsAPI, studentAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import Navigation from '../components/Navigation';
-import GrowthChart from '../components/GrowthChart';
-import { Play, Trophy, Calendar, BookOpen, TrendingUp, FileText } from 'lucide-react';
+import { 
+  Play, 
+  Trophy, 
+  Calendar, 
+  BookOpen, 
+  TrendingUp, 
+  FileText, 
+  Target,
+  Award,
+  Clock,
+  CheckCircle,
+  BarChart3,
+  Users,
+  Zap,
+  ArrowRight,
+  Star,
+  Activity,
+  TrendingDown,
+  Minus,
+  Plus,
+  Eye,
+  BarChart,
+  PieChart,
+  LineChart,
+  Brain,
+  Target as TargetIcon,
+  Lightbulb,
+  Clock as ClockIcon
+} from 'lucide-react';
 
 const StudentDashboard: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [dashboardData, setDashboardData] = useState<DashboardData[]>([]);
+  const [assessmentConfigs, setAssessmentConfigs] = useState<Record<number, AssessmentConfiguration>>({});
   const [loading, setLoading] = useState(true);
   const hasLoadedRef = useRef(false);
   const { user } = useAuth();
@@ -40,6 +68,21 @@ const StudentDashboard: React.FC = () => {
       ]);
       setSubjects(subjectsData);
       setDashboardData(assessmentData);
+
+      // Load assessment configurations for each subject
+      const configs: Record<number, AssessmentConfiguration> = {};
+      for (const subject of subjectsData) {
+        try {
+          const config = await studentAPI.getAssessmentConfiguration(
+            user?.grade?.id || 1, 
+            subject.id
+          );
+          configs[subject.id] = config;
+        } catch (error) {
+          console.warn(`No config found for subject ${subject.id}:`, error);
+        }
+      }
+      setAssessmentConfigs(configs);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
@@ -82,35 +125,145 @@ const StudentDashboard: React.FC = () => {
       return new Date(current.dateTaken) > new Date(latest.dateTaken) ? current : latest;
     });
     
-    return latest.ritScore;
+    return (latest as any).rit_score || latest.ritScore;
   };
 
   const getAverageRITScore = (subjectId: number) => {
     const completedAssessments = getCompletedAssessments(subjectId);
     if (completedAssessments.length === 0) return null;
     
-    const totalScore = completedAssessments.reduce((sum, assessment) => sum + (assessment.ritScore || 0), 0);
+    const totalScore = completedAssessments.reduce((sum, assessment) => {
+      const score = (assessment as any).rit_score || assessment.ritScore || 0;
+      return sum + score;
+    }, 0);
     return Math.round(totalScore / completedAssessments.length);
+  };
+
+  // Analytics Functions
+  const getOverallStats = () => {
+    const allAssessments = dashboardData.flatMap(subject => subject.assessments);
+    const totalAssessments = allAssessments.length;
+    const totalScore = allAssessments.reduce((sum, assessment) => {
+      return sum + ((assessment as any).rit_score || assessment.ritScore || 0);
+    }, 0);
+    const averageScore = totalAssessments > 0 ? Math.round(totalScore / totalAssessments) : 0;
+    const highestScore = Math.max(...allAssessments.map(a => (a as any).rit_score || a.ritScore || 0));
+    const lowestScore = Math.min(...allAssessments.map(a => (a as any).rit_score || a.ritScore || 0));
+    
+    return { totalAssessments, averageScore, highestScore, lowestScore };
+  };
+
+  const getSubjectPerformance = () => {
+    return subjects.map(subject => {
+      const assessments = getCompletedAssessments(subject.id);
+      const avgScore = getAverageRITScore(subject.id) || 0;
+      const latestScore = getLatestRITScore(subject.id) || 0;
+      const totalAssessments = assessments.length;
+      
+      return {
+        subjectName: subject.name,
+        avgScore,
+        latestScore,
+        totalAssessments,
+        improvement: totalAssessments > 1 ? latestScore - avgScore : 0
+      };
+    });
+  };
+
+  const getPerformanceTrend = () => {
+    const allAssessments = dashboardData.flatMap(subject => 
+      subject.assessments.map(assessment => ({
+        ...assessment,
+        subjectName: subject.subjectName
+      }))
+    );
+    
+    return allAssessments
+      .sort((a, b) => new Date(a.dateTaken).getTime() - new Date(b.dateTaken).getTime())
+      .map((assessment, index) => ({
+        date: new Date(assessment.dateTaken).toLocaleDateString(),
+        score: (assessment as any).rit_score || assessment.ritScore || 0,
+        subject: assessment.subjectName,
+        period: assessment.assessmentPeriod
+      }));
+  };
+
+  const getAccuracyStats = () => {
+    const allAssessments = dashboardData.flatMap(subject => subject.assessments);
+    const totalQuestions = allAssessments.reduce((sum, assessment) => sum + (assessment.totalQuestions || 0), 0);
+    const totalCorrect = allAssessments.reduce((sum, assessment) => sum + (assessment.correctAnswers || 0), 0);
+    const overallAccuracy = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+    
+    return { totalQuestions, totalCorrect, overallAccuracy };
+  };
+
+  const getGrowthRate = () => {
+    const allAssessments = dashboardData.flatMap(subject => subject.assessments);
+    if (allAssessments.length < 2) return 0;
+    
+    const sortedAssessments = allAssessments.sort((a, b) => 
+      new Date(a.dateTaken).getTime() - new Date(b.dateTaken).getTime()
+    );
+    
+    const firstScore = (sortedAssessments[0] as any).rit_score || sortedAssessments[0].ritScore || 0;
+    const lastScore = (sortedAssessments[sortedAssessments.length - 1] as any).rit_score || sortedAssessments[sortedAssessments.length - 1].ritScore || 0;
+    
+    return Math.round(((lastScore - firstScore) / firstScore) * 100);
+  };
+
+  const getStrengthsAndWeaknesses = () => {
+    const subjectPerformance = getSubjectPerformance();
+    const sortedSubjects = subjectPerformance.sort((a, b) => b.latestScore - a.latestScore);
+    
+    return {
+      strongest: sortedSubjects[0]?.subjectName || 'N/A',
+      weakest: sortedSubjects[sortedSubjects.length - 1]?.subjectName || 'N/A',
+      strongestScore: sortedSubjects[0]?.latestScore || 0,
+      weakestScore: sortedSubjects[sortedSubjects.length - 1]?.latestScore || 0
+    };
+  };
+
+  const getConsistencyScore = () => {
+    const allAssessments = dashboardData.flatMap(subject => subject.assessments);
+    if (allAssessments.length < 2) return 0;
+    
+    const scores = allAssessments.map(a => (a as any).rit_score || a.ritScore || 0);
+    const mean = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+    const variance = scores.reduce((sum, score) => sum + Math.pow(score - mean, 2), 0) / scores.length;
+    const standardDeviation = Math.sqrt(variance);
+    
+    // Convert to consistency percentage (lower SD = higher consistency)
+    const maxExpectedSD = 50; // Assuming max reasonable variation
+    const consistency = Math.max(0, 100 - (standardDeviation / maxExpectedSD) * 100);
+    return Math.round(consistency);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-white">
         <Navigation />
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
         </div>
       </div>
     );
   }
 
+  const overallStats = getOverallStats();
+  const subjectPerformance = getSubjectPerformance();
+  const performanceTrend = getPerformanceTrend();
+  const accuracyStats = getAccuracyStats();
+  const growthRate = getGrowthRate();
+  const strengthsWeaknesses = getStrengthsAndWeaknesses();
+  const consistencyScore = getConsistencyScore();
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <Navigation />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full px-6 py-6">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Welcome back, {user?.firstName || user?.username}!
           </h1>
@@ -135,199 +288,285 @@ const StudentDashboard: React.FC = () => {
           </p>
         </div>
 
-        {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <BookOpen className="h-6 w-6 text-blue-600" />
+              <div className="p-2 bg-yellow-100 rounded-lg">
+                <BookOpen className="h-6 w-6 text-yellow-600" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">{subjects.length}</p>
-                <p className="text-gray-600">Available Subjects for Grade {user?.grade?.display_name}</p>
+                <p className="text-gray-600 text-sm">Available Subjects</p>
               </div>
             </div>
           </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-emerald-100 rounded-lg">
-                <Trophy className="h-6 w-6 text-emerald-600" />
+              <div className="p-2 bg-pink-100 rounded-lg">
+                <Trophy className="h-6 w-6 text-pink-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {dashboardData.reduce((total, subject) => total + subject.assessments.length, 0)}
-                </p>
-                <p className="text-gray-600">Assessments Completed</p>
+                <p className="text-2xl font-bold text-gray-900">{overallStats.totalAssessments}</p>
+                <p className="text-gray-600 text-sm">Assessments Completed</p>
               </div>
             </div>
           </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-purple-100 rounded-lg">
                 <TrendingUp className="h-6 w-6 text-purple-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {Math.round(
-                    dashboardData.reduce((total, subject) => {
-                      const avg = getAverageRITScore(subject.subjectId);
-                      return total + (avg || 0);
-                    }, 0) / Math.max(dashboardData.length, 1)
-                  ) || 'N/A'}
-                </p>
-                <p className="text-gray-600">Average RIT Score</p>
+                <p className="text-2xl font-bold text-gray-900">{overallStats.averageScore}</p>
+                <p className="text-gray-600 text-sm">Average RIT Score</p>
               </div>
             </div>
           </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <svg className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
+              <div className="p-2 bg-teal-100 rounded-lg">
+                <Users className="h-6 w-6 text-teal-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {user?.grade?.display_name || 'N/A'}
-                </p>
-                <p className="text-gray-600">Current Grade</p>
+                <p className="text-2xl font-bold text-gray-900">{user?.grade?.display_name || 'N/A'}</p>
+                <p className="text-gray-600 text-sm">Current Grade</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Subjects and Assessments */}
-          <div className="lg:col-span-2 space-y-6">
-            {subjects.map((subject) => {
-              const completedAssessments = getCompletedAssessments(subject.id);
-              const latestRITScore = getLatestRITScore(subject.id);
-              const averageRITScore = getAverageRITScore(subject.id);
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content - Subjects */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Your Subjects</h2>
+                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                  <Calendar className="h-4 w-4" />
+                  <span>{currentSeason} Season</span>
+                </div>
+              </div>
 
-              return (
-                <div key={subject.id} className="bg-white rounded-xl shadow-sm border border-gray-100">
-                  <div className="p-6 border-b border-gray-100">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="text-xl font-semibold text-gray-900">{subject.name}</h3>
-                        <p className="text-gray-600">{subject.description}</p>
-                        {user?.school && user?.grade && (
-                          <div className="flex items-center space-x-3 mt-1">
-                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                              {user.school.name}
-                            </span>
-                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                              {user.grade.display_name}
-                            </span>
+              <div className="space-y-3">
+                {subjects.map((subject) => {
+                  const completedAssessments = getCompletedAssessments(subject.id);
+                  const latestRITScore = getLatestRITScore(subject.id);
+                  const averageRITScore = getAverageRITScore(subject.id);
+                  const isCompleted = isAssessmentCompleted(subject.id, currentSeason);
+                  const config = assessmentConfigs[subject.id];
+
+                  return (
+                    <div key={subject.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center">
+                            <BookOpen className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">{subject.name}</h3>
+                            <p className="text-gray-600 text-sm">{subject.description}</p>
+                          </div>
+                        </div>
+                        {latestRITScore && (
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-yellow-600">{latestRITScore}</div>
+                            <div className="text-sm text-gray-600">Latest RIT</div>
                           </div>
                         )}
                       </div>
-                      {latestRITScore && (
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-blue-600">{latestRITScore}</div>
-                          <div className="text-sm text-gray-600">Latest RIT Score</div>
-                          {averageRITScore && (
-                            <div className="text-sm text-gray-500">Avg: {averageRITScore}</div>
-                          )}
-                        </div>
-                      )}
-                    </div>
 
-                    <div className="grid grid-cols-3 gap-4">
-                      {periods.map((period) => {
-                        const isCompleted = isAssessmentCompleted(subject.id, period);
-                        const assessment = completedAssessments.find(a => a.assessmentPeriod === period);
-
-                        return (
-                          <div key={period} className="text-center">
-                            <div className="mb-2">
-                              <Calendar className="h-5 w-5 text-gray-400 mx-auto mb-1" />
-                              <div className="text-sm font-medium text-gray-700">{period}</div>
-                            </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-white rounded-lg p-4 border border-gray-200">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm font-medium text-gray-700">{currentSeason} Assessment</span>
                             {isCompleted ? (
-                              <div className="space-y-1">
-                                <div className="text-lg font-bold text-emerald-600">
-                                  {assessment?.ritScore}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {assessment?.correctAnswers}/10 correct
-                                </div>
-                                <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                                  Completed
-                                </div>
+                              <div className="flex items-center space-x-1 text-green-600">
+                                <CheckCircle className="h-4 w-4" />
+                                <span className="text-xs font-medium">Completed</span>
                               </div>
                             ) : (
+                              <div className="flex items-center space-x-1 text-blue-600">
+                                <Clock className="h-4 w-4" />
+                                <span className="text-xs font-medium">Available</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Assessment Details - Real Data */}
+                          <div className="mb-3 space-y-2">
+                            <div className="flex items-center justify-between text-xs text-gray-600">
+                              <div className="flex items-center space-x-1">
+                                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>Questions:</span>
+                              </div>
+                              <span className="font-medium">{config?.questionCount || 'N/A'}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-gray-600">
+                              <div className="flex items-center space-x-1">
+                                <Clock className="h-3 w-3" />
+                                <span>Time Limit:</span>
+                              </div>
+                              <span className="font-medium">{config?.timeLimitMinutes ? `${config.timeLimitMinutes} minutes` : 'N/A'}</span>
+                            </div>
+                          </div>
+                          
+                          {isCompleted ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-600">RIT Score:</span>
+                                <span className="font-semibold text-yellow-600">
+                                  {completedAssessments.find(a => a.assessmentPeriod === currentSeason)?.ritScore}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-600">Accuracy:</span>
+                                <span className="font-semibold text-green-600">
+                                  {Math.round((completedAssessments.find(a => a.assessmentPeriod === currentSeason)?.correctAnswers || 0) / 10 * 100)}%
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => startAssessment(subject.id, currentSeason)}
+                              className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2 font-medium"
+                            >
+                              <Play className="h-4 w-4" />
+                              <span>Start Assessment</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="bg-white rounded-lg p-4 border border-gray-200">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm font-medium text-gray-700">Progress Overview</span>
+                            <Target className="h-4 w-4 text-yellow-500" />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-600">Current RIT:</span>
+                              <span className="font-semibold text-gray-900">{latestRITScore || 'N/A'}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-600">Best Score:</span>
+                              <span className="font-semibold text-green-600">
+                                {Math.max(...completedAssessments.map(a => (a as any).rit_score || a.ritScore || 0))}
+                              </span>
+                            </div>
+                            {completedAssessments.length > 0 && (
                               <button
-                                onClick={() => startAssessment(subject.id, period)}
-                                className="flex items-center justify-center space-x-1 w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                                onClick={() => viewLatestReport(subject.id)}
+                                className="w-full mt-3 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2 text-sm font-medium"
                               >
-                                <Play className="h-4 w-4" />
-                                <span>Start</span>
+                                <FileText className="h-4 w-4" />
+                                <span>View Report</span>
+                                <ArrowRight className="h-4 w-4" />
                               </button>
                             )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Show current season status */}
-                  <div className="p-4 bg-gray-50">
-                    <div className="text-center">
-                      <div className="text-sm font-medium text-gray-700 mb-2">
-                        {currentSeason} Assessment Status
-                      </div>
-                      {completedAssessments.length > 0 ? (
-                        <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-emerald-100 text-emerald-800">
-                          ✓ Completed
                         </div>
-                      ) : (
-                        <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                          Available
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Action Buttons */}
-                    {getCompletedAssessments(subject.id).length > 0 && (
-                      <div className="mt-3 space-y-2">
-                        
-                        <button
-                          onClick={() => viewLatestReport(subject.id)}
-                          className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center justify-center space-x-2"
-                        >
-                          <FileText className="h-4 w-4" />
-                          <span>View Latest Report</span>
-                        </button>
                       </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
-          {/* Progress Summary */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Season Progress</h3>
+          {/* Sidebar - Meaningful Analytics */}
+          <div className="space-y-4">
+             {/* Academic Insights */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Academic Insights</h3>
               <div className="space-y-4">
-                {subjects.map((subject) => {
-                  const completedCount = getCompletedAssessments(subject.id).length;
-                  const progressPercentage = completedCount > 0 ? 100 : 0;
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
+                      <Brain className="h-4 w-4 text-white" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-700">Strongest Subject</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-bold text-yellow-600">{strengthsWeaknesses.strongest}</div>
+                    <div className="text-xs text-gray-500">{strengthsWeaknesses.strongestScore} RIT</div>
+                  </div>
+                </div>
 
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-pink-500 rounded-lg flex items-center justify-center">
+                      <TargetIcon className="h-4 w-4 text-white" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-700">Needs Focus</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-bold text-pink-600">{strengthsWeaknesses.weakest}</div>
+                    <div className="text-xs text-gray-500">{strengthsWeaknesses.weakestScore} RIT</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
+                      <TrendingUp className="h-4 w-4 text-white" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-700">Growth Rate</span>
+                  </div>
+                  <div className="text-right">
+                    <div className={`text-sm font-bold ${growthRate > 0 ? 'text-green-600' : growthRate < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                      {growthRate > 0 ? '+' : ''}{growthRate}%
+                    </div>
+                    <div className="text-xs text-gray-500">from start</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center">
+                      <Lightbulb className="h-4 w-4 text-white" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-700">Consistency</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-bold text-teal-600">{consistencyScore}%</div>
+                    <div className="text-xs text-gray-500">score stability</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
+              <div className="space-y-3">
+                {subjects.map((subject) => {
+                  const isCompleted = isAssessmentCompleted(subject.id, currentSeason);
                   return (
-                    <div key={subject.id}>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-700">{subject.name}</span>
-                        <span className="text-sm text-gray-600">{completedCount}/1</span>
+                    <div key={subject.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <h4 className="font-medium text-gray-900">{subject.name}</h4>
+                        <p className="text-sm text-gray-600">{currentSeason} Assessment</p>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${progressPercentage}%` }}
-                        ></div>
-                      </div>
+                      {isCompleted ? (
+                        <div className="flex items-center space-x-2 text-green-600">
+                          <CheckCircle className="h-4 w-4" />
+                          <span className="text-sm font-medium">Completed</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => startAssessment(subject.id, currentSeason)}
+                          className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm font-medium transition-colors flex items-center space-x-1"
+                        >
+                          <Play className="h-3 w-3" />
+                          <span>Start</span>
+                        </button>
+                      )}
                     </div>
                   );
                 })}

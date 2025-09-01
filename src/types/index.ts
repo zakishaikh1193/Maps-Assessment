@@ -98,11 +98,14 @@ export interface AssessmentResponse {
   correctAnswers?: number;
   totalQuestions?: number;
   duration?: number;
-  currentRIT?: number;
-  nextDifficulty?: number;
-  message?: string;
   assessmentId?: number;
   question?: AssessmentQuestion;
+}
+
+export interface StartAssessmentResponse {
+  assessmentId: number;
+  timeLimitMinutes: number;
+  question: AssessmentQuestion;
 }
 
 export interface AssessmentResult {

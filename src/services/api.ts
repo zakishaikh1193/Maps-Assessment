@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { User, Subject, Question, Assessment, AssessmentResponse, DashboardData, AdminStats, School, Grade, AssessmentConfiguration, Competency, CompetencyStats, PaginationInfo } from '../types';
+import { User, Subject, Question, Assessment, AssessmentResponse, DashboardData, AdminStats, School, Grade, AssessmentConfiguration, Competency, CompetencyStats, PaginationInfo, StartAssessmentResponse } from '../types';
 
 // const API_BASE_URL = 'https://map-test.bylinelms.com/api';
 const API_BASE_URL = 'http://localhost:5000/api';
@@ -290,7 +290,7 @@ export const assessmentConfigAPI = {
 };
 
 export const studentAPI = {
-  startAssessment: async (subjectId: number, period: 'Fall' | 'Winter' | 'Spring') => {
+  startAssessment: async (subjectId: number, period: string): Promise<StartAssessmentResponse> => {
     const response = await api.post('/student/assessments/start', { subjectId, period });
     return response.data;
   },
@@ -341,6 +341,11 @@ export const studentAPI = {
 
   getCompetencyGrowth: async (subjectId: number) => {
     const response = await api.get(`/student/assessments/competency-growth/${subjectId}`);
+    return response.data;
+  },
+
+  getAssessmentConfiguration: async (gradeId: number, subjectId: number): Promise<AssessmentConfiguration> => {
+    const response = await api.get(`/student/assessment-config/${gradeId}/${subjectId}`);
     return response.data;
   }
 };
