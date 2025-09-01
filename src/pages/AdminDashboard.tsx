@@ -1,14 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Subject, Question, AdminStats } from '../types';
-import { subjectsAPI, adminAPI } from '../services/api';
+import { Subject, Question, AdminStats, School, Grade, Competency } from '../types';
+import { subjectsAPI, adminAPI, schoolsAPI, gradesAPI, studentsAPI } from '../services/api';
 import QuestionForm from '../components/QuestionForm';
 import QuestionList from '../components/QuestionList';
 import SubjectForm from '../components/SubjectForm';
 import SubjectList from '../components/SubjectList';
+import SchoolForm from '../components/SchoolForm';
+import SchoolList from '../components/SchoolList';
+import GradeForm from '../components/GradeForm';
+import GradeList from '../components/GradeList';
+import StudentList from '../components/StudentList';
 import AdminStatsCard from '../components/AdminStatsCard';
 import GrowthOverTimeChart from '../components/GrowthOverTimeChart';
 import Navigation from '../components/Navigation';
-import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User, Settings } from 'lucide-react';
+import AssessmentConfigList from '../components/AssessmentConfigList';
+import CompetencyList from '../components/CompetencyList';
+import SubjectPerformanceDashboard from '../components/SubjectPerformanceDashboard';
+import CompetencyMasteryDashboard from '../components/CompetencyMasteryDashboard';
+import CompetencyForm from '../components/CompetencyForm';
+import CompetencyAnalytics from '../components/CompetencyAnalytics';
+import CSVImportModal from '../components/CSVImportModal';
+import QuestionCSVImportModal from '../components/QuestionCSVImportModal';
+import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User, Settings, Building, GraduationCap, Clock, Target, Brain, Upload } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -19,17 +32,55 @@ const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalQuestions, setTotalQuestions] = useState(0);
+  const [selectedGradeFilter, setSelectedGradeFilter] = useState<number | null>(null);
+  
   // Growth chart states
-  const [activeTab, setActiveTab] = useState<'questions' | 'growth' | 'subjects'>('questions');
+  const [activeTab, setActiveTab] = useState<'students' | 'questions' | 'growth' | 'subjects' | 'schools' | 'grades' | 'configs' | 'competencies' | 'performance' | 'competency-analytics'>('students');
   const [students, setStudents] = useState<Array<{id: number, username: string, firstName?: string, lastName?: string}>>([]);
   const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
   const [growthData, setGrowthData] = useState<any>(null);
   const [growthLoading, setGrowthLoading] = useState(false);
+  const [growthSubTab, setGrowthSubTab] = useState<'growth' | 'competency'>('growth');
+  const [competencyScores, setCompetencyScores] = useState<any[]>([]);
+  const [competencyGrowthData, setCompetencyGrowthData] = useState<any[]>([]);
+  const [competencyLoading, setCompetencyLoading] = useState(false);
+
+  // Cascading filter states for growth analysis
+  const [schools, setSchools] = useState<School[]>([]);
+  const [grades, setGrades] = useState<Grade[]>([]);
+  const [filteredStudents, setFilteredStudents] = useState<Array<{id: number, username: string, firstName?: string, lastName?: string, schoolName?: string, gradeName?: string}>>([]);
+  const [selectedSchool, setSelectedSchool] = useState<number | null>(null);
+  const [selectedGrade, setSelectedGrade] = useState<number | null>(null);
 
   // Subjects management states
   const [showSubjectForm, setShowSubjectForm] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [subjectsLoading, setSubjectsLoading] = useState(false);
+
+  // Schools management states
+  const [showSchoolForm, setShowSchoolForm] = useState(false);
+  const [editingSchool, setEditingSchool] = useState<School | null>(null);
+  const [schoolsLoading, setSchoolsLoading] = useState(false);
+
+  // Grades management states
+  const [showGradeForm, setShowGradeForm] = useState(false);
+  const [editingGrade, setEditingGrade] = useState<Grade | null>(null);
+  const [gradesLoading, setGradesLoading] = useState(false);
+
+  // Competencies management states
+  const [showCompetencyForm, setShowCompetencyForm] = useState(false);
+  const [editingCompetency, setEditingCompetency] = useState<Competency | null>(null);
+  const [competencyRefreshTrigger, setCompetencyRefreshTrigger] = useState(0);
+
+  // CSV Import states
+  const [showCSVImportModal, setShowCSVImportModal] = useState(false);
+  const [showQuestionCSVImportModal, setShowQuestionCSVImportModal] = useState(false);
+  const [studentRefreshTrigger, setStudentRefreshTrigger] = useState(0);
+  const [questionRefreshTrigger, setQuestionRefreshTrigger] = useState(0);
 
   useEffect(() => {
     loadInitialData();
@@ -37,9 +88,12 @@ const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     if (selectedSubject) {
-      loadQuestions(selectedSubject.id);
+      setSelectedGradeFilter(null); // Reset grade filter when subject changes
+      loadQuestions(selectedSubject.id, 1);
     }
   }, [selectedSubject]);
+
+
 
   // Load growth data when student and subject are selected
   useEffect(() => {
@@ -58,16 +112,84 @@ const AdminDashboard: React.FC = () => {
     }
   }, [activeTab, selectedStudent, selectedSubject]);
 
+  // Load competency data when student and subject are selected
+  useEffect(() => {
+    if (activeTab === 'growth' && selectedStudent && selectedSubject && growthSubTab === 'competency') {
+      setCompetencyLoading(true);
+      
+      // Import the API function
+      import('../services/api').then(({ competenciesAPI }) => {
+        const promises = [];
+        
+        // Get latest competency scores for the student
+        promises.push(
+          competenciesAPI.getStudentCompetencyScores(selectedStudent)
+            .then(data => setCompetencyScores(data))
+            .catch(error => {
+              console.error('Error fetching competency scores:', error);
+              setCompetencyScores([]);
+            })
+        );
+        
+        // Get competency growth data
+        promises.push(
+          competenciesAPI.getStudentCompetencyGrowth(selectedStudent, selectedSubject.id)
+            .then(data => setCompetencyGrowthData(data))
+            .catch(error => {
+              console.error('Error fetching competency growth:', error);
+              setCompetencyGrowthData([]);
+            })
+        );
+        
+        Promise.all(promises).finally(() => {
+          setCompetencyLoading(false);
+        });
+      });
+    }
+  }, [activeTab, selectedStudent, selectedSubject, growthSubTab]);
+
+  // Cascading filter logic
+  useEffect(() => {
+    if (selectedSchool && selectedGrade) {
+      // Load students for selected school and grade
+      studentsAPI.getBySchoolAndGrade(selectedSchool, selectedGrade)
+        .then(data => {
+          setFilteredStudents(data);
+          setSelectedStudent(null); // Reset student selection
+        })
+        .catch(error => {
+          console.error('Error fetching students by school and grade:', error);
+          setFilteredStudents([]);
+        });
+    } else {
+      setFilteredStudents([]);
+      setSelectedStudent(null);
+    }
+  }, [selectedSchool, selectedGrade]);
+
+  // Reset filters when school changes
+  useEffect(() => {
+    if (selectedSchool === null) {
+      setSelectedGrade(null);
+      setSelectedStudent(null);
+      setFilteredStudents([]);
+    }
+  }, [selectedSchool]);
+
   const loadInitialData = async () => {
     try {
-      const [subjectsData, statsData, studentsData] = await Promise.all([
+      const [subjectsData, statsData, studentsData, schoolsData, gradesData] = await Promise.all([
         subjectsAPI.getAll(),
         adminAPI.getStats(),
-        adminAPI.getStudents()
+        adminAPI.getStudents(),
+        schoolsAPI.getAll(),
+        gradesAPI.getActive()
       ]);
       setSubjects(subjectsData);
       setStats(statsData);
       setStudents(studentsData);
+      setSchools(schoolsData);
+      setGrades(gradesData);
       if (subjectsData.length > 0) {
         setSelectedSubject(subjectsData[0]);
       }
@@ -78,10 +200,31 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const loadQuestions = async (subjectId: number) => {
+  const loadQuestions = async (subjectId: number, page: number = 1) => {
+    return loadQuestionsWithGrade(subjectId, page, selectedGradeFilter);
+  };
+
+  const handlePageChange = (page: number) => {
+    if (selectedSubject) {
+      loadQuestions(selectedSubject.id, page);
+    }
+  };
+
+  const handleGradeChange = (gradeId: number | null) => {
+    setSelectedGradeFilter(gradeId);
+    if (selectedSubject) {
+      // Pass the gradeId directly instead of relying on state
+      loadQuestionsWithGrade(selectedSubject.id, 1, gradeId);
+    }
+  };
+
+  const loadQuestionsWithGrade = async (subjectId: number, page: number = 1, gradeId: number | null = null) => {
     try {
-      const questionsData = await adminAPI.getQuestions(subjectId);
-      setQuestions(questionsData);
+      const response = await adminAPI.getQuestions(subjectId, page, 20, gradeId);
+      setQuestions(response.questions);
+      setCurrentPage(response.pagination.currentPage);
+      setTotalPages(response.pagination.totalPages);
+      setTotalQuestions(response.pagination.totalQuestions);
     } catch (error) {
       console.error('Failed to load questions:', error);
     }
@@ -90,7 +233,7 @@ const AdminDashboard: React.FC = () => {
   const handleQuestionCreated = () => {
     setShowQuestionForm(false);
     if (selectedSubject) {
-      loadQuestions(selectedSubject.id);
+      loadQuestions(selectedSubject.id, 1);
     }
     loadInitialData();
   };
@@ -99,13 +242,13 @@ const AdminDashboard: React.FC = () => {
     setEditingQuestion(null);
     setShowQuestionForm(false);
     if (selectedSubject) {
-      loadQuestions(selectedSubject.id);
+      loadQuestions(selectedSubject.id, 1);
     }
   };
 
   const handleQuestionDeleted = () => {
     if (selectedSubject) {
-      loadQuestions(selectedSubject.id);
+      loadQuestions(selectedSubject.id, 1);
     }
     loadInitialData();
   };
@@ -273,41 +416,51 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
         )}
-
-        {/* Enhanced Tab Navigation */}
-        <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-2 mb-8 shadow-2xl">
-          <div className="flex">
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1 mb-8">
+          <div className="flex flex-wrap">
+            <button
+              onClick={() => setActiveTab('students')}
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'students'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <Users className="h-4 w-4" />
+                <span className="hidden sm:inline">STUDENTS</span>
+              </div>
+            </button>
             <button
               onClick={() => setActiveTab('questions')}
-              className={`flex-1 px-8 py-4 text-sm font-semibold rounded-xl transition-all duration-300 ${
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'questions'
                   ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg transform scale-[1.02]'
                   : 'text-gray-300 hover:text-white hover:bg-white/10'
               }`}
             >
-              <div className="flex items-center justify-center space-x-3">
-                <Settings className="h-5 w-5" />
-                <span>QUESTION MANAGEMENT</span>
-                {activeTab === 'questions' && <Sparkles className="h-4 w-4 animate-pulse" />}
+              <div className="flex items-center justify-center space-x-2">
+                <FileQuestion className="h-4 w-4" />
+                <span className="hidden sm:inline">QUESTIONS</span>
               </div>
             </button>
             <button
               onClick={() => setActiveTab('growth')}
-              className={`flex-1 px-8 py-4 text-sm font-semibold rounded-xl transition-all duration-300 ${
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'growth'
                   ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg transform scale-[1.02]'
                   : 'text-gray-300 hover:text-white hover:bg-white/10'
               }`}
             >
-              <div className="flex items-center justify-center space-x-3">
-                <TrendingUp className="h-5 w-5" />
-                <span>STUDENT ANALYTICS</span>
-                {activeTab === 'growth' && <Sparkles className="h-4 w-4 animate-pulse" />}
+              <div className="flex items-center justify-center space-x-2">
+                <TrendingUp className="h-4 w-4" />
+                <span className="hidden sm:inline">GROWTH</span>
               </div>
             </button>
             <button
               onClick={() => setActiveTab('subjects')}
-              className={`flex-1 px-6 py-3 text-sm font-medium rounded-lg transition-colors ${
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'subjects'
                   ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -315,7 +468,85 @@ const AdminDashboard: React.FC = () => {
             >
               <div className="flex items-center justify-center space-x-2">
                 <Settings className="h-4 w-4" />
-                <span>SUBJECTS</span>
+                <span className="hidden sm:inline">SUBJECTS</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('schools')}
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'schools'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <Building className="h-4 w-4" />
+                <span className="hidden sm:inline">SCHOOLS</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('grades')}
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'grades'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <GraduationCap className="h-4 w-4" />
+                <span className="hidden sm:inline">GRADES</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('configs')}
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'configs'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <Clock className="h-4 w-4" />
+                <span className="hidden sm:inline">CONFIGS</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('competencies')}
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'competencies'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <Target className="h-4 w-4" />
+                <span className="hidden sm:inline">COMPETENCIES</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('performance')}
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'performance'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <BarChart3 className="h-4 w-4" />
+                <span className="hidden sm:inline">PERFORMANCE</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('competency-analytics')}
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'competency-analytics'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <Brain className="h-4 w-4" />
+                <span className="hidden sm:inline">COMPETENCY ANALYTICS</span>
               </div>
             </button>
           </div>
@@ -342,10 +573,7 @@ const AdminDashboard: React.FC = () => {
                           : 'text-gray-300 hover:bg-white/10 border-2 border-transparent hover:border-white/20'
                       }`}
                     >
-                      <div className="font-semibold">{subject.name}</div>
-                      <div className="text-sm opacity-75 mt-1">
-                        {questions.filter(q => selectedSubject?.id === subject.id).length} questions
-                      </div>
+                      <div className="font-medium">{subject.name}</div>
                     </button>
                   ))}
                 </div>
@@ -370,14 +598,22 @@ const AdminDashboard: React.FC = () => {
                             Manage adaptive assessment questions for {selectedSubject.name}
                           </p>
                         </div>
-                        <button
-                          onClick={() => setShowQuestionForm(true)}
-                          className="group flex items-center space-x-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                        >
-                          <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
-                          <span>Add Question</span>
-                          <Zap className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                        </button>
+                        <div className="flex space-x-3">
+                          <button
+                            onClick={() => setShowQuestionCSVImportModal(true)}
+                            className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200"
+                          >
+                            <Upload className="h-5 w-5" />
+                            <span>Import CSV</span>
+                          </button>
+                          <button
+                            onClick={() => setShowQuestionForm(true)}
+                            className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                          >
+                            <Plus className="h-5 w-5" />
+                            <span>Add Question</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -399,6 +635,12 @@ const AdminDashboard: React.FC = () => {
                     questions={questions}
                     onEdit={handleEditQuestion}
                     onDelete={handleQuestionDeleted}
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalQuestions={totalQuestions}
+                    onPageChange={handlePageChange}
+                    selectedGrade={selectedGradeFilter}
+                    onGradeChange={handleGradeChange}
                   />
                 </>
               )}
@@ -408,64 +650,110 @@ const AdminDashboard: React.FC = () => {
 
         {/* Student Growth Tab Content */}
         {activeTab === 'growth' && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Enhanced Selection Sidebar */}
-            <div className="lg:col-span-1 space-y-6">
-              <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 shadow-2xl">
-                <h2 className="text-xl font-bold text-white mb-6 flex items-center space-x-3">
-                  <BookOpen className="h-6 w-6 text-purple-400" />
-                  <span>Subject</span>
-                </h2>
-                <div className="space-y-3">
-                  {subjects.map((subject) => (
-                    <button
-                      key={subject.id}
-                      onClick={() => setSelectedSubject(subject)}
-                      className={`w-full text-left px-4 py-4 rounded-xl transition-all duration-300 transform hover:scale-[1.02] ${
-                        selectedSubject?.id === subject.id
-                          ? 'bg-gradient-to-r from-purple-500/30 to-blue-500/30 text-white border-2 border-purple-400/50 shadow-lg'
-                          : 'text-gray-300 hover:bg-white/10 border-2 border-transparent hover:border-white/20'
-                      }`}
-                    >
-                      <div className="font-semibold">{subject.name}</div>
-                    </button>
-                  ))}
+          <div className="space-y-6">
+            {/* Filter Controls - Horizontal Layout */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                <TrendingUp className="h-5 w-5 text-blue-600" />
+                <span>Growth Analysis Filters</span>
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* School Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
+                    <Building className="h-4 w-4 text-purple-600" />
+                    <span>School</span>
+                  </label>
+                  <select
+                    value={selectedSchool || ''}
+                    onChange={(e) => setSelectedSchool(e.target.value ? Number(e.target.value) : null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                  >
+                    <option value="">Select School</option>
+                    {schools.map((school) => (
+                      <option key={school.id} value={school.id}>
+                        {school.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
+                {/* Grade Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
+                    <GraduationCap className="h-4 w-4 text-orange-600" />
+                    <span>Grade</span>
+                  </label>
+                  <select
+                    value={selectedGrade || ''}
+                    onChange={(e) => setSelectedGrade(e.target.value ? Number(e.target.value) : null)}
+                    disabled={!selectedSchool}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm ${
+                      !selectedSchool ? 'bg-gray-100 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <option value="">Select Grade</option>
+                    {grades.map((grade) => (
+                      <option key={grade.id} value={grade.id}>
+                        {grade.display_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 shadow-2xl">
-                <h2 className="text-xl font-bold text-white mb-6 flex items-center space-x-3">
-                  <User className="h-6 w-6 text-emerald-400" />
-                  <span>Student</span>
-                </h2>
-                <div className="space-y-3">
-                  {students.map((student) => (
-                    <button
-                      key={student.id}
-                      onClick={() => setSelectedStudent(student.id)}
-                      className={`w-full text-left px-4 py-4 rounded-xl transition-all duration-300 transform hover:scale-[1.02] ${
-                        selectedStudent === student.id
-                          ? 'bg-gradient-to-r from-emerald-500/30 to-blue-500/30 text-white border-2 border-emerald-400/50 shadow-lg'
-                          : 'text-gray-300 hover:bg-white/10 border-2 border-transparent hover:border-white/20'
-                      }`}
-                    >
-                      <div className="font-semibold">
+                {/* Student Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
+                    <User className="h-4 w-4 text-emerald-600" />
+                    <span>Student</span>
+                  </label>
+                  <select
+                    value={selectedStudent || ''}
+                    onChange={(e) => setSelectedStudent(e.target.value ? Number(e.target.value) : null)}
+                    disabled={!selectedGrade}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm ${
+                      !selectedGrade ? 'bg-gray-100 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <option value="">Select Student</option>
+                    {filteredStudents.map((student) => (
+                      <option key={student.id} value={student.id}>
                         {student.firstName && student.lastName 
                           ? `${student.firstName} ${student.lastName}`
                           : student.username
                         }
-                      </div>
-                      <div className="text-sm opacity-75 mt-1">
-                        @{student.username}
-                      </div>
-                    </button>
-                  ))}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Subject Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
+                    <BookOpen className="h-4 w-4 text-blue-600" />
+                    <span>Subject</span>
+                  </label>
+                  <select
+                    value={selectedSubject?.id || ''}
+                    onChange={(e) => {
+                      const subject = subjects.find(s => s.id === Number(e.target.value));
+                      setSelectedSubject(subject || null);
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  >
+                    <option value="">Select Subject</option>
+                    {subjects.map((subject) => (
+                      <option key={subject.id} value={subject.id}>
+                        {subject.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
 
-            {/* Enhanced Growth Chart Content */}
-            <div className="lg:col-span-3">
+            {/* Growth Chart Content */}
+            <div>
               {selectedSubject && selectedStudent ? (
                 <div className="space-y-6">
                   <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 shadow-2xl">
@@ -473,26 +761,82 @@ const AdminDashboard: React.FC = () => {
                       <BarChart3 className="h-7 w-7 text-emerald-400" />
                       <span>Student Performance Analytics</span>
                     </h2>
-                    <p className="text-purple-200">
-                      {students.find(s => s.id === selectedStudent)?.firstName || 'Student'} - {selectedSubject.name}
+                    <p className="text-gray-600">
+                      {filteredStudents.find(s => s.id === selectedStudent)?.firstName || 'Student'} - {selectedSubject.name}
                     </p>
                   </div>
 
-                  {growthLoading ? (
-                    <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-8 shadow-2xl">
-                      <div className="flex flex-col items-center justify-center h-64 space-y-4">
-                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent"></div>
-                        <p className="text-white/80">Analyzing performance data...</p>
-                      </div>
+                  {/* Sub-tab Navigation */}
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                    <div className="flex space-x-4">
+                      <button
+                        onClick={() => setGrowthSubTab('growth')}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                          growthSubTab === 'growth'
+                            ? 'bg-blue-100 text-blue-800 border-2 border-blue-200'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-2 border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <TrendingUp className="h-4 w-4" />
+                          <span>Growth Over Time</span>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => setGrowthSubTab('competency')}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                          growthSubTab === 'competency'
+                            ? 'bg-purple-100 text-purple-800 border-2 border-purple-200'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-2 border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <Brain className="h-4 w-4" />
+                          <span>Competency Analysis</span>
+                        </div>
+                      </button>
                     </div>
-                  ) : growthData ? (
-                    <GrowthOverTimeChart data={growthData} />
+                  </div>
+
+                  {/* Sub-tab Content */}
+                  {growthSubTab === 'growth' ? (
+                    <div>
+                      {growthLoading ? (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                          <div className="flex items-center justify-center h-64">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                          </div>
+                        </div>
+                      ) : growthData ? (
+                        <GrowthOverTimeChart data={growthData} />
+                      ) : (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                          <div className="text-center">
+                            <p className="text-gray-600">Select a subject and student to view growth data.</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ) : (
-                    <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-8 shadow-2xl">
-                      <div className="text-center">
-                        <Activity className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-300">Select a subject and student to view growth data.</p>
-                      </div>
+                    <div>
+                      {competencyLoading ? (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                          <div className="flex items-center justify-center h-64">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+                          </div>
+                        </div>
+                      ) : competencyScores.length > 0 ? (
+                        <CompetencyAnalytics 
+                          currentScores={competencyScores}
+                          growthData={competencyGrowthData}
+                        />
+                      ) : (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                          <div className="text-center">
+                            <p className="text-gray-600">No competency data available for this student and subject.</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -512,6 +856,30 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
+        {/* Students Management Tab Content */}
+        {activeTab === 'students' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Student Management</h2>
+                  <p className="text-gray-600 mt-1">Manage all students in the system</p>
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setShowCSVImportModal(true)}
+                    className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200"
+                  >
+                    <Upload className="h-5 w-5" />
+                    <span>Import CSV</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <StudentList refreshTrigger={studentRefreshTrigger} />
+          </div>
+        )}
+
         {/* Subjects Management Tab Content */}
         {activeTab === 'subjects' && (
           <div className="space-y-6">
@@ -521,6 +889,63 @@ const AdminDashboard: React.FC = () => {
               onDelete={handleSubjectDeleted}
               onAddNew={handleAddSubject}
               loading={subjectsLoading}
+            />
+          </div>
+        )}
+
+        {/* Schools Management Tab Content */}
+        {activeTab === 'schools' && (
+          <div className="space-y-6">
+            <SchoolList />
+          </div>
+        )}
+
+        {/* Grades Management Tab Content */}
+        {activeTab === 'grades' && (
+          <div className="space-y-6">
+            <GradeList />
+          </div>
+        )}
+
+        {/* Assessment Configurations Tab Content */}
+        {activeTab === 'configs' && (
+          <div className="space-y-6">
+            <AssessmentConfigList />
+          </div>
+        )}
+        {activeTab === 'competencies' && (
+          <div className="space-y-6">
+            <CompetencyList
+              onEditCompetency={(competency) => {
+                setEditingCompetency(competency);
+                setShowCompetencyForm(true);
+              }}
+              onAddCompetency={() => {
+                setEditingCompetency(null);
+                setShowCompetencyForm(true);
+              }}
+              refreshTrigger={competencyRefreshTrigger}
+            />
+          </div>
+        )}
+
+        {/* Performance Analytics Tab Content */}
+        {activeTab === 'performance' && (
+          <div className="space-y-6">
+            <SubjectPerformanceDashboard 
+              schools={schools}
+              grades={grades}
+            />
+          </div>
+        )}
+
+        {/* Competency Analytics Tab Content */}
+        {activeTab === 'competency-analytics' && (
+          <div className="space-y-6">
+            <CompetencyMasteryDashboard 
+              schools={schools}
+              grades={grades}
+              subjects={subjects}
             />
           </div>
         )}
@@ -553,6 +978,49 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Competency Form Modal */}
+        {showCompetencyForm && (
+          <CompetencyForm
+            editingCompetency={editingCompetency}
+            onCompetencyCreated={() => {
+              setShowCompetencyForm(false);
+              setEditingCompetency(null);
+              setCompetencyRefreshTrigger(prev => prev + 1);
+            }}
+            onCompetencyUpdated={() => {
+              setShowCompetencyForm(false);
+              setEditingCompetency(null);
+              setCompetencyRefreshTrigger(prev => prev + 1);
+            }}
+            onCancel={() => {
+              setShowCompetencyForm(false);
+              setEditingCompetency(null);
+            }}
+          />
+        )}
+
+        {/* CSV Import Modal */}
+        <CSVImportModal
+          isOpen={showCSVImportModal}
+          onClose={() => setShowCSVImportModal(false)}
+          onImportComplete={() => {
+            setStudentRefreshTrigger(prev => prev + 1);
+          }}
+        />
+
+        {/* Question CSV Import Modal */}
+        <QuestionCSVImportModal
+          isOpen={showQuestionCSVImportModal}
+          onClose={() => setShowQuestionCSVImportModal(false)}
+          onImportComplete={() => {
+            setQuestionRefreshTrigger(prev => prev + 1);
+            // Refresh questions for current subject
+            if (selectedSubject) {
+              loadQuestions(selectedSubject.id, 1);
+            }
+          }}
+        />
       </div>
     </div>
   );

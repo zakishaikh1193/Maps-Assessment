@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { DetailedAssessmentResults, AssessmentResult } from '../types';
+import { DetailedAssessmentResults, AssessmentResult, CompetencyScore, CompetencyGrowthData } from '../types';
 import Navigation from '../components/Navigation';
 import DifficultyProgressionChart from '../components/DifficultyProgressionChart';
 import GrowthOverTimeChart from '../components/GrowthOverTimeChart';
+import CompetencyAnalytics from '../components/CompetencyAnalytics';
 import { 
   Trophy, 
   Target, 
@@ -18,7 +19,8 @@ import {
   BookOpen,
   BarChart3,
   BarChart,
-  LineChart
+  LineChart,
+  Brain
 } from 'lucide-react';
 
 const ResultsPage: React.FC = () => {
@@ -26,9 +28,13 @@ const ResultsPage: React.FC = () => {
   const navigate = useNavigate();
   const [results, setResults] = useState<DetailedAssessmentResults | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'assessment' | 'overall'>('assessment');
+  const [activeTab, setActiveTab] = useState<'assessment' | 'overall' | 'competency'>('assessment');
   const [growthData, setGrowthData] = useState<any>(null);
   const [growthLoading, setGrowthLoading] = useState(false);
+  const [competencyScores, setCompetencyScores] = useState<CompetencyScore[]>([]);
+  const [competencyGrowthData, setCompetencyGrowthData] = useState<CompetencyGrowthData[]>([]);
+  const [competencyLoading, setCompetencyLoading] = useState(false);
+  const competencyDataFetched = useRef(false);
 
   useEffect(() => {
     // Check if we have detailed results or basic results
@@ -36,6 +42,10 @@ const ResultsPage: React.FC = () => {
       // We have detailed results
       setResults(location.state as DetailedAssessmentResults);
       setLoading(false);
+      // Reset competency data when assessment changes
+      setCompetencyScores([]);
+      setCompetencyGrowthData([]);
+      competencyDataFetched.current = false;
     } else {
       // We have basic results, show fallback
       setLoading(false);
@@ -64,6 +74,45 @@ const ResultsPage: React.FC = () => {
       });
     }
   }, [activeTab, results, growthData, growthLoading]);
+
+  // Fetch competency data when switching to competency tab
+  useEffect(() => {
+    if (activeTab === 'competency' && results && !competencyLoading && !competencyDataFetched.current) {
+      setCompetencyLoading(true);
+      competencyDataFetched.current = true;
+      
+      import('../services/api').then(({ studentAPI }) => {
+        const promises = [];
+        
+        // Fetch current assessment competency scores
+        if (results.assessment.id) {
+          promises.push(
+            studentAPI.getCompetencyScores(results.assessment.id)
+              .then(data => setCompetencyScores(data))
+              .catch(error => {
+                console.error('Error fetching competency scores:', error);
+                setCompetencyScores([]);
+              })
+          );
+        }
+        
+        // Fetch competency growth data
+        const subjectId = 4; // Default to Computer Science
+        promises.push(
+          studentAPI.getCompetencyGrowth(subjectId)
+            .then(data => setCompetencyGrowthData(data))
+            .catch(error => {
+              console.error('Error fetching competency growth:', error);
+              setCompetencyGrowthData([]);
+            })
+        );
+        
+        Promise.all(promises).finally(() => {
+          setCompetencyLoading(false);
+        });
+      });
+    }
+  }, [activeTab, results, competencyLoading]);
 
   const getScoreColor = (score: number) => {
     if (score >= 350) return 'text-purple-600';
@@ -217,6 +266,19 @@ const ResultsPage: React.FC = () => {
                 <span>OVERALL REPORT</span>
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab('competency')}
+              className={`flex-1 px-6 py-3 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'competency'
+                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <Brain className="h-4 w-4" />
+                <span>COMPETENCY ANALYSIS</span>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -331,6 +393,41 @@ const ResultsPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Competency Summary (if available) */}
+        {results.competencyScores && results.competencyScores.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+              <Brain className="h-5 w-5 text-purple-600" />
+              <span>Competency Summary</span>
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {results.competencyScores.slice(0, 6).map((score) => (
+                <div key={score.id} className="bg-gray-50 p-4 rounded-lg border">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-gray-900 text-sm">{score.competencyName}</h4>
+                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      score.feedbackType === 'strong' ? 'bg-green-100 text-green-800' :
+                      score.feedbackType === 'neutral' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {score.finalScore}%
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-600 line-clamp-2">{score.feedbackText}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 text-center">
+              <button
+                onClick={() => setActiveTab('competency')}
+                className="text-purple-600 hover:text-purple-700 text-sm font-medium"
+              >
+                View Detailed Competency Analysis →
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Difficulty Progression Chart */}
         <div className="mb-8">
@@ -460,9 +557,9 @@ const ResultsPage: React.FC = () => {
         {/* Motivational Message */}
         <div className="mt-8 text-center p-6 bg-gradient-to-r from-blue-100 to-purple-100 rounded-xl border border-blue-200">
           <p className="text-blue-800 font-medium">
-            {results.statistics.accuracy >= 80 
+            {results.statistics.accuracy >= 75 
               ? "Excellent work! You're showing strong mastery of the material." 
-              : results.statistics.accuracy >= 60
+              : results.statistics.accuracy >= 50
               ? "Good effort! Keep practicing to improve your skills."
               : "Every assessment is a learning opportunity. Keep working hard!"}
           </p>
@@ -491,17 +588,87 @@ const ResultsPage: React.FC = () => {
                 {/* Growth Chart */}
                 <GrowthOverTimeChart data={growthData} />
                 
-                {/* Difficulty Progression Chart */}
-                <DifficultyProgressionChart
-                  data={results.difficultyProgression}
-                  currentRIT={results.statistics.currentRIT}
-                  previousRIT={results.statistics.previousRIT}
-                />
+                {/* Competency Growth Summary */}
+                {competencyGrowthData.length > 0 && (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                      <Brain className="h-5 w-5 text-purple-600" />
+                      <span>Competency Growth Overview</span>
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {competencyGrowthData.slice(0, 6).map((competency) => (
+                        <div key={competency.competencyId} className="bg-gray-50 p-4 rounded-lg border">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium text-gray-900 text-sm">{competency.competencyName}</h4>
+                            <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              competency.growthTrend === 'improving' ? 'bg-green-100 text-green-800' :
+                              competency.growthTrend === 'declining' ? 'bg-red-100 text-red-800' :
+                              'bg-blue-100 text-blue-800'
+                            }`}>
+                              {competency.averageScore}%
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2 mb-2">
+                            {competency.growthTrend === 'improving' ? (
+                              <TrendingUp className="h-4 w-4 text-green-600" />
+                            ) : competency.growthTrend === 'declining' ? (
+                              <TrendingDown className="h-4 w-4 text-red-600" />
+                            ) : (
+                              <Target className="h-4 w-4 text-blue-600" />
+                            )}
+                            <span className="text-xs text-gray-600 capitalize">{competency.growthTrend}</span>
+                          </div>
+                          <p className="text-xs text-gray-600 line-clamp-2">{competency.overallFeedback}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 text-center">
+                      <button
+                        onClick={() => setActiveTab('competency')}
+                        className="text-purple-600 hover:text-purple-700 text-sm font-medium"
+                      >
+                        View Detailed Competency Analysis →
+                      </button>
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
                 <div className="text-center">
                   <p className="text-gray-600">Unable to load growth data.</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Competency Analysis Tab Content */}
+        {activeTab === 'competency' && (
+          <div className="space-y-8">
+            {competencyLoading ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                <div className="flex items-center justify-center h-64">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                </div>
+              </div>
+            ) : competencyScores.length > 0 ? (
+              <CompetencyAnalytics
+                currentScores={competencyScores}
+                growthData={competencyGrowthData}
+                assessmentId={results?.assessment.id}
+              />
+            ) : (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                <div className="text-center">
+                  <div className="text-6xl mb-4">🧠</div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Competency Data Available</h3>
+                  <p className="text-gray-600 mb-4">
+                    Competency analysis is not available for this assessment yet.
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    This feature requires questions to be mapped to specific competencies.
+                  </p>
                 </div>
               </div>
             )}

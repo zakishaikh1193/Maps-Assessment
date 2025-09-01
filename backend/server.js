@@ -19,6 +19,11 @@ import authRoutes from './routes/auth.js';
 import subjectsRoutes from './routes/subjects.js';
 import adminRoutes from './routes/admin.js';
 import studentRoutes from './routes/student.js';
+import schoolsRoutes from './routes/schools.js';
+import gradesRoutes from './routes/grades.js';
+import assessmentConfigRoutes from './routes/assessmentConfig.js';
+import competenciesRoutes from './routes/competencies.js';
+import rateLimit from 'express-rate-limit';
 
 // Load environment variables
 dotenv.config();
@@ -38,10 +43,6 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Rate limiting
-app.use('/api/auth', authRateLimit);
-app.use('/api', generalRateLimit);
-
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
@@ -57,6 +58,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/subjects', subjectsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/student', studentRoutes);
+app.use('/api/schools', schoolsRoutes);
+app.use('/api/grades', gradesRoutes);
+app.use('/api/admin/assessment-configs', assessmentConfigRoutes);
+app.use('/api/admin/competencies', competenciesRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -68,11 +73,15 @@ app.get('/', (req, res) => {
       subjects: '/api/subjects',
       admin: '/api/admin',
       student: '/api/student',
+      schools: '/api/schools',
+      grades: '/api/grades',
       health: '/health'
     },
     documentation: 'API documentation coming soon'
   });
 });
+
+app.use('api/auth', authRateLimit);
 
 // Error handling middleware (must be last)
 app.use(notFoundHandler);

@@ -246,3 +246,98 @@ export const validateBulkQuestions = [
   
   handleValidationErrors
 ];
+
+// Student creation validation
+export const validateStudent = [
+  body('username')
+    .trim()
+    .isLength({ min: 3, max: 50 })
+    .withMessage('Username must be between 3 and 50 characters')
+    .matches(/^[a-zA-Z0-9_]+$/)
+    .withMessage('Username can only contain letters, numbers, and underscores'),
+  
+  body('password')
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters long'),
+  
+  body('firstName')
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('First name must be between 1 and 100 characters'),
+  
+  body('lastName')
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Last name must be between 1 and 100 characters'),
+  
+  body('schoolId')
+    .isInt({ min: 1 })
+    .withMessage('School ID must be a positive integer'),
+  
+  body('gradeId')
+    .isInt({ min: 1 })
+    .withMessage('Grade ID must be a positive integer'),
+  
+  handleValidationErrors
+];
+
+// Validate competency data
+export const validateCompetency = (req, res, next) => {
+  const { code, name, strong_description, neutral_description, growth_description, strong_threshold, neutral_threshold } = req.body;
+
+  const errors = [];
+
+  // Required fields
+  if (!code || code.trim().length === 0) {
+    errors.push('Competency code is required');
+  } else if (code.length > 20) {
+    errors.push('Competency code must be 20 characters or less');
+  }
+
+  if (!name || name.trim().length === 0) {
+    errors.push('Competency name is required');
+  } else if (name.length > 100) {
+    errors.push('Competency name must be 100 characters or less');
+  }
+
+  if (!strong_description || strong_description.trim().length === 0) {
+    errors.push('Strong performance description is required');
+  }
+
+  if (!neutral_description || neutral_description.trim().length === 0) {
+    errors.push('Neutral performance description is required');
+  }
+
+  if (!growth_description || growth_description.trim().length === 0) {
+    errors.push('Growth needed description is required');
+  }
+
+  // Validate thresholds
+  if (strong_threshold !== undefined) {
+    if (!Number.isInteger(strong_threshold) || strong_threshold < 0 || strong_threshold > 100) {
+      errors.push('Strong threshold must be an integer between 0 and 100');
+    }
+  }
+
+  if (neutral_threshold !== undefined) {
+    if (!Number.isInteger(neutral_threshold) || neutral_threshold < 0 || neutral_threshold > 100) {
+      errors.push('Neutral threshold must be an integer between 0 and 100');
+    }
+  }
+
+  if (strong_threshold !== undefined && neutral_threshold !== undefined) {
+    if (strong_threshold <= neutral_threshold) {
+      errors.push('Strong threshold must be greater than neutral threshold');
+    }
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({
+      error: 'Validation failed',
+      details: errors,
+      code: 'VALIDATION_ERROR'
+    });
+  }
+
+  next();
+};

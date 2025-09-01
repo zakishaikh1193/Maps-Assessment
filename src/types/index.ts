@@ -4,6 +4,16 @@ export interface User {
   role: 'admin' | 'student';
   firstName?: string;
   lastName?: string;
+  school?: {
+    id: number;
+    name: string;
+  };
+  grade?: {
+    id: number;
+    name: string;
+    display_name: string;
+    level: number;
+  };
 }
 
 export interface Subject {
@@ -12,9 +22,38 @@ export interface Subject {
   description?: string;
 }
 
+export interface School {
+  id: number;
+  name: string;
+  address?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  created_at?: string;
+}
+
+export interface Grade {
+  id: number;
+  name: string;
+  display_name: string;
+  grade_level?: number | null;
+  description?: string;
+  is_active: boolean;
+  created_at?: string;
+}
+
+export interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalQuestions: number;
+  questionsPerPage: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
 export interface Question {
   id: number;
   subjectId: number;
+  gradeId: number;
   questionText: string;
   options: string[];
   correctOptionIndex: number;
@@ -22,6 +61,12 @@ export interface Question {
   createdBy?: number;
   createdAt?: string;
   createdByUsername?: string;
+  gradeName?: string;
+  competencies?: Array<{
+    id: number;
+    code: string;
+    name: string;
+  }>;
 }
 
 export interface Assessment {
@@ -53,11 +98,14 @@ export interface AssessmentResponse {
   correctAnswers?: number;
   totalQuestions?: number;
   duration?: number;
-  currentRIT?: number;
-  nextDifficulty?: number;
-  message?: string;
   assessmentId?: number;
   question?: AssessmentQuestion;
+}
+
+export interface StartAssessmentResponse {
+  assessmentId: number;
+  timeLimitMinutes: number;
+  question: AssessmentQuestion;
 }
 
 export interface AssessmentResult {
@@ -108,8 +156,11 @@ export interface PeriodDistribution {
 
 export interface GrowthOverTimeData {
   subjectName: string;
+  schoolName?: string;
+  gradeName?: string;
   studentScores: GrowthDataPoint[];
   classAverages: ClassAverageDataPoint[];
+  districtAverages?: ClassAverageDataPoint[];
   periodDistributions: PeriodDistribution[];
   totalAssessments: number;
 }
@@ -139,12 +190,58 @@ export interface DetailedAssessmentResults {
     period: string;
     year: number;
   } | null;
+  competencyScores?: CompetencyScore[];
 }
 
 export interface DashboardData {
   subjectId: number;
   subjectName: string;
   assessments: Assessment[];
+}
+
+export interface AssessmentConfiguration {
+  id: number;
+  gradeId: number;
+  subjectId: number;
+  timeLimitMinutes: number;
+  questionCount: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  gradeName?: string;
+  subjectName?: string;
+}
+
+export interface CompetencyScore {
+  id: number;
+  competencyId: number;
+  competencyCode: string;
+  competencyName: string;
+  questionsAttempted: number;
+  questionsCorrect: number;
+  rawScore: number;
+  weightedScore: number;
+  finalScore: number;
+  feedbackType: 'strong' | 'neutral' | 'growth';
+  feedbackText: string;
+  dateCalculated: string;
+}
+
+export interface CompetencyGrowthData {
+  competencyId: number;
+  competencyCode: string;
+  competencyName: string;
+  scores: Array<{
+    assessmentId: number;
+    assessmentPeriod: string;
+    year: number;
+    dateTaken: string;
+    finalScore: number;
+    feedbackType: 'strong' | 'neutral' | 'growth';
+  }>;
+  averageScore: number;
+  growthTrend: 'improving' | 'declining' | 'stable';
+  overallFeedback: string;
 }
 
 export interface AdminStats {
@@ -159,4 +256,31 @@ export interface AdminStats {
     name: string;
     question_count: number;
   }>;
+}
+
+export interface Competency {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  strong_description: string;
+  neutral_description: string;
+  growth_description: string;
+  strong_threshold: number;
+  neutral_threshold: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CompetencyStats {
+  id: number;
+  code: string;
+  name: string;
+  questions_linked: number;
+  students_assessed: number;
+  average_score: number;
+  strong_count: number;
+  neutral_count: number;
+  growth_count: number;
 }
