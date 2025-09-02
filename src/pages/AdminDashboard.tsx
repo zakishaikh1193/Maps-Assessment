@@ -796,7 +796,7 @@ const AdminDashboard: React.FC = () => {
                           </div>
                         </div>
                       ) : growthData ? (
-                        <GrowthOverTimeChart data={growthData} />
+                        <GrowthOverTimeChart data={growthData} userRole="admin" />
                       ) : (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
                           <div className="text-center">

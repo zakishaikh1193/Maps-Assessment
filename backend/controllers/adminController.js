@@ -91,9 +91,9 @@ export const getStudentGrowth = async (req, res) => {
       WHERE rn = 1
       ORDER BY year ASC, 
         CASE assessment_period 
-          WHEN 'Fall' THEN 1 
-          WHEN 'Winter' THEN 2 
-          WHEN 'Spring' THEN 3 
+          WHEN 'Winter' THEN 1 
+          WHEN 'Spring' THEN 2 
+          WHEN 'Fall' THEN 3 
         END ASC
     `, [studentId, subjectId]);
 
@@ -114,9 +114,9 @@ export const getStudentGrowth = async (req, res) => {
       GROUP BY a.assessment_period, a.year
       ORDER BY a.year ASC, 
         CASE a.assessment_period 
-          WHEN 'Fall' THEN 1 
-          WHEN 'Winter' THEN 2 
-          WHEN 'Spring' THEN 3 
+          WHEN 'Winter' THEN 1 
+          WHEN 'Spring' THEN 2 
+          WHEN 'Fall' THEN 3 
         END ASC
     `, [subjectId, school_id, grade_id]);
 
@@ -136,9 +136,9 @@ export const getStudentGrowth = async (req, res) => {
       GROUP BY a.assessment_period, a.year
       ORDER BY a.year ASC, 
         CASE a.assessment_period 
-          WHEN 'Fall' THEN 1 
-          WHEN 'Winter' THEN 2 
-          WHEN 'Spring' THEN 3 
+          WHEN 'Winter' THEN 1 
+          WHEN 'Spring' THEN 2 
+          WHEN 'Fall' THEN 3 
         END ASC
     `, [subjectId, grade_id]);
 
@@ -162,9 +162,9 @@ export const getStudentGrowth = async (req, res) => {
       GROUP BY a.assessment_period, a.year
       ORDER BY a.year ASC, 
         CASE a.assessment_period 
-          WHEN 'Fall' THEN 1 
-          WHEN 'Winter' THEN 2 
-          WHEN 'Spring' THEN 3 
+          WHEN 'Winter' THEN 1 
+          WHEN 'Spring' THEN 2 
+          WHEN 'Fall' THEN 3 
         END ASC
     `, [subjectId, school_id, grade_id]);
 

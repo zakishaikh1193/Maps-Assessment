@@ -134,7 +134,7 @@ const GrowthPage: React.FC = () => {
 
         {/* Growth Chart */}
         <div className="mb-8">
-          <GrowthOverTimeChart data={growthData} />
+                          <GrowthOverTimeChart data={growthData} userRole="student" />
         </div>
 
         {/* Insights Section */}

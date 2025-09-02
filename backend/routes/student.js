@@ -13,7 +13,7 @@ import {
   getAssessmentConfiguration
 } from '../controllers/studentController.js';
 import { authenticateToken, studentOnly } from '../middleware/auth.js';
-import { validateId, validateAssessmentId, validateSubjectId, validateAssessmentStart, validateAnswerSubmission } from '../middleware/validation.js';
+import { validateId, validateAssessmentId, validateSubjectId, validateAssessmentStart, validateAnswerSubmission, validateAssessmentConfig } from '../middleware/validation.js';
 
 const router = express.Router();
 
@@ -36,7 +36,7 @@ router.get('/assessments/growth/:subjectId', validateSubjectId, getGrowthOverTim
 router.get('/subjects/available', getAvailableSubjects);
 
 // Assessment configuration
-router.get('/assessment-config/:gradeId/:subjectId', validateId, getAssessmentConfiguration);
+router.get('/assessment-config/:gradeId/:subjectId', validateAssessmentConfig, getAssessmentConfiguration);
 
 // Competency Analytics
 router.get('/assessments/:assessmentId/competencies', validateAssessmentId, getCompetencyScores);

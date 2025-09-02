@@ -44,11 +44,12 @@ const StudentDashboard: React.FC = () => {
   const navigate = useNavigate();
 
   // Get current season based on date
+  // Academic year progression: Winter (Jan-Mar) → Spring (Apr-Jul) → Fall (Aug-Nov)
   const getCurrentSeason = () => {
     const month = new Date().getMonth();
-    if (month >= 8 && month <= 10) return 'Fall';
-    if (month >= 11 || month <= 1) return 'Winter';
-    return 'Spring';
+    if (month >= 7 && month <= 10) return 'Fall';     // Aug, Sep, Oct, Nov
+    if (month >= 0 && month <= 2) return 'Winter';   // Jan, Feb, Mar
+    return 'Spring';                                   // Apr, May, Jun, Jul
   };
 
   const currentSeason = getCurrentSeason();
@@ -147,8 +148,13 @@ const StudentDashboard: React.FC = () => {
       return sum + ((assessment as any).rit_score || assessment.ritScore || 0);
     }, 0);
     const averageScore = totalAssessments > 0 ? Math.round(totalScore / totalAssessments) : 0;
-    const highestScore = Math.max(...allAssessments.map(a => (a as any).rit_score || a.ritScore || 0));
-    const lowestScore = Math.min(...allAssessments.map(a => (a as any).rit_score || a.ritScore || 0));
+    
+    const validScores = allAssessments
+      .map(a => (a as any).rit_score || a.ritScore)
+      .filter(score => score !== null && score !== undefined && score > 0);
+    
+    const highestScore = validScores.length > 0 ? Math.max(...validScores) : 0;
+    const lowestScore = validScores.length > 0 ? Math.min(...validScores) : 0;
     
     return { totalAssessments, averageScore, highestScore, lowestScore };
   };
@@ -208,12 +214,26 @@ const StudentDashboard: React.FC = () => {
     const firstScore = (sortedAssessments[0] as any).rit_score || sortedAssessments[0].ritScore || 0;
     const lastScore = (sortedAssessments[sortedAssessments.length - 1] as any).rit_score || sortedAssessments[sortedAssessments.length - 1].ritScore || 0;
     
+    // Prevent division by zero
+    if (firstScore === 0) return 0;
+    
     return Math.round(((lastScore - firstScore) / firstScore) * 100);
   };
 
   const getStrengthsAndWeaknesses = () => {
     const subjectPerformance = getSubjectPerformance();
-    const sortedSubjects = subjectPerformance.sort((a, b) => b.latestScore - a.latestScore);
+    const validSubjects = subjectPerformance.filter(subject => subject.latestScore > 0);
+    
+    if (validSubjects.length === 0) {
+      return {
+        strongest: 'N/A',
+        weakest: 'N/A',
+        strongestScore: 0,
+        weakestScore: 0
+      };
+    }
+    
+    const sortedSubjects = validSubjects.sort((a, b) => b.latestScore - a.latestScore);
     
     return {
       strongest: sortedSubjects[0]?.subjectName || 'N/A',
@@ -456,7 +476,14 @@ const StudentDashboard: React.FC = () => {
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-gray-600">Best Score:</span>
                               <span className="font-semibold text-green-600">
-                                {Math.max(...completedAssessments.map(a => (a as any).rit_score || a.ritScore || 0))}
+                                {(() => {
+                                  const validScores = completedAssessments
+                                    .map(a => (a as any).rit_score || a.ritScore)
+                                    .filter(score => score !== null && score !== undefined && score > 0);
+                                  
+                                  if (validScores.length === 0) return 'N/A';
+                                  return Math.max(...validScores);
+                                })()}
                               </span>
                             </div>
                             {completedAssessments.length > 0 && (
@@ -494,7 +521,7 @@ const StudentDashboard: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-bold text-yellow-600">{strengthsWeaknesses.strongest}</div>
-                    <div className="text-xs text-gray-500">{strengthsWeaknesses.strongestScore} RIT</div>
+                    <div className="text-xs text-gray-500">{strengthsWeaknesses.strongestScore > 0 ? `${strengthsWeaknesses.strongestScore} RIT` : 'N/A'}</div>
                   </div>
                 </div>
 
@@ -507,7 +534,7 @@ const StudentDashboard: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-bold text-pink-600">{strengthsWeaknesses.weakest}</div>
-                    <div className="text-xs text-gray-500">{strengthsWeaknesses.weakestScore} RIT</div>
+                    <div className="text-xs text-gray-500">{strengthsWeaknesses.weakestScore > 0 ? `${strengthsWeaknesses.weakestScore} RIT` : 'N/A'}</div>
                   </div>
                 </div>
 
