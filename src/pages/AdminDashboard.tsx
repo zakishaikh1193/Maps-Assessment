@@ -21,7 +21,7 @@ import CompetencyForm from '../components/CompetencyForm';
 import CompetencyAnalytics from '../components/CompetencyAnalytics';
 import CSVImportModal from '../components/CSVImportModal';
 import QuestionCSVImportModal from '../components/QuestionCSVImportModal';
-import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User, Settings, Building, GraduationCap, Clock, Target, Brain, Upload } from 'lucide-react';
+import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User, Settings, Building, GraduationCap, Clock, Target, Brain, Upload, Sparkles, Database, Activity, Zap } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -318,12 +318,12 @@ const AdminDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="min-h-screen bg-gray-50">
         <Navigation />
         <div className="flex items-center justify-center h-64">
           <div className="flex flex-col items-center space-y-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent"></div>
-            <p className="text-white/80">Loading dashboard...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
+            <p className="text-gray-600">Loading dashboard...</p>
           </div>
         </div>
       </div>
@@ -331,32 +331,23 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gray-50">
       <Navigation />
       
-      {/* Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
-      </div>
-      
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center space-x-4 mb-4">
-            <div className="p-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-2xl shadow-lg">
+            <div className="p-3 bg-blue-600 rounded-2xl shadow-lg">
               <Brain className="h-8 w-8 text-white" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold text-white mb-2">
-                Admin Command Center
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                Admin Dashboard
               </h1>
-              <p className="text-purple-200 text-lg">
+              <p className="text-gray-600 text-lg">
                 Manage assessments and analyze student performance
               </p>
-            </div>
-            <div className="ml-auto">
-              <Sparkles className="h-8 w-8 text-yellow-400 animate-pulse" />
             </div>
           </div>
         </div>
@@ -364,52 +355,49 @@ const AdminDashboard: React.FC = () => {
         {/* Enhanced Stats Cards */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="group relative overflow-hidden bg-gradient-to-br from-purple-600/20 to-purple-800/20 backdrop-blur-xl rounded-2xl border border-purple-500/30 p-6 hover:border-purple-400/50 transition-all duration-300">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              <div className="relative flex items-center space-x-4">
-                <div className="p-3 bg-purple-500/20 rounded-xl border border-purple-400/30">
-                  <FileQuestion className="h-8 w-8 text-purple-300" />
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-blue-100 rounded-xl">
+                  <FileQuestion className="h-8 w-8 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-3xl font-bold text-white">{stats.totalQuestions}</p>
-                  <p className="text-purple-200">Total Questions</p>
+                  <p className="text-3xl font-bold text-gray-900">{stats.totalQuestions}</p>
+                  <p className="text-gray-600">Total Questions</p>
                   <div className="flex items-center space-x-1 mt-1">
-                    <Database className="h-4 w-4 text-purple-400" />
-                    <span className="text-xs text-purple-300">Active Database</span>
+                    <Database className="h-4 w-4 text-blue-500" />
+                    <span className="text-xs text-gray-500">Active Database</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="group relative overflow-hidden bg-gradient-to-br from-blue-600/20 to-blue-800/20 backdrop-blur-xl rounded-2xl border border-blue-500/30 p-6 hover:border-blue-400/50 transition-all duration-300">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              <div className="relative flex items-center space-x-4">
-                <div className="p-3 bg-blue-500/20 rounded-xl border border-blue-400/30">
-                  <Users className="h-8 w-8 text-blue-300" />
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-green-100 rounded-xl">
+                  <Users className="h-8 w-8 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-3xl font-bold text-white">{stats.totalStudents}</p>
-                  <p className="text-blue-200">Active Students</p>
+                  <p className="text-3xl font-bold text-gray-900">{stats.totalStudents}</p>
+                  <p className="text-gray-600">Active Students</p>
                   <div className="flex items-center space-x-1 mt-1">
-                    <Activity className="h-4 w-4 text-blue-400" />
-                    <span className="text-xs text-blue-300">Enrolled Users</span>
+                    <Activity className="h-4 w-4 text-green-500" />
+                    <span className="text-xs text-gray-500">Enrolled Users</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="group relative overflow-hidden bg-gradient-to-br from-emerald-600/20 to-emerald-800/20 backdrop-blur-xl rounded-2xl border border-emerald-500/30 p-6 hover:border-emerald-400/50 transition-all duration-300">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              <div className="relative flex items-center space-x-4">
-                <div className="p-3 bg-emerald-500/20 rounded-xl border border-emerald-400/30">
-                  <Target className="h-8 w-8 text-emerald-300" />
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-purple-100 rounded-xl">
+                  <Target className="h-8 w-8 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-3xl font-bold text-white">{stats.totalAssessments}</p>
-                  <p className="text-emerald-200">Assessments Taken</p>
+                  <p className="text-3xl font-bold text-gray-900">{stats.totalAssessments}</p>
+                  <p className="text-gray-600">Assessments Taken</p>
                   <div className="flex items-center space-x-1 mt-1">
-                    <Zap className="h-4 w-4 text-emerald-400" />
-                    <span className="text-xs text-emerald-300">Completed Tests</span>
+                    <Zap className="h-4 w-4 text-purple-500" />
+                    <span className="text-xs text-gray-500">Completed Tests</span>
                   </div>
                 </div>
               </div>
@@ -417,13 +405,13 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
         {/* Tab Navigation */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1 mb-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1 mb-8">
           <div className="flex flex-wrap">
             <button
               onClick={() => setActiveTab('students')}
               className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'students'
-                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  ? 'bg-blue-100 text-blue-800 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
@@ -436,8 +424,8 @@ const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('questions')}
               className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'questions'
-                  ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg transform scale-[1.02]'
-                  : 'text-gray-300 hover:text-white hover:bg-white/10'
+                  ? 'bg-blue-100 text-blue-800 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
               <div className="flex items-center justify-center space-x-2">
@@ -449,8 +437,8 @@ const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('growth')}
               className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'growth'
-                  ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg transform scale-[1.02]'
-                  : 'text-gray-300 hover:text-white hover:bg-white/10'
+                  ? 'bg-blue-100 text-blue-800 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
               <div className="flex items-center justify-center space-x-2">
@@ -462,7 +450,7 @@ const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('subjects')}
               className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'subjects'
-                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  ? 'bg-blue-100 text-blue-800 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
@@ -475,7 +463,7 @@ const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('schools')}
               className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'schools'
-                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  ? 'bg-blue-100 text-blue-800 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
@@ -488,7 +476,7 @@ const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('grades')}
               className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'grades'
-                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  ? 'bg-blue-100 text-blue-800 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
@@ -501,7 +489,7 @@ const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('configs')}
               className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'configs'
-                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  ? 'bg-blue-100 text-blue-800 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
@@ -514,7 +502,7 @@ const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('competencies')}
               className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'competencies'
-                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  ? 'bg-blue-100 text-blue-800 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
@@ -527,7 +515,7 @@ const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('performance')}
               className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'performance'
-                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  ? 'bg-blue-100 text-blue-800 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
@@ -540,7 +528,7 @@ const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('competency-analytics')}
               className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'competency-analytics'
-                  ? 'bg-purple-100 text-purple-800 border-b-2 border-purple-600'
+                  ? 'bg-blue-100 text-blue-800 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
@@ -557,9 +545,9 @@ const AdminDashboard: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* Enhanced Subjects Sidebar */}
             <div className="lg:col-span-1">
-              <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 shadow-2xl">
-                <h2 className="text-xl font-bold text-white mb-6 flex items-center space-x-3">
-                  <BookOpen className="h-6 w-6 text-purple-400" />
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center space-x-3">
+                  <BookOpen className="h-6 w-6 text-blue-600" />
                   <span>Subjects</span>
                 </h2>
                 <div className="space-y-3">
@@ -567,10 +555,10 @@ const AdminDashboard: React.FC = () => {
                     <button
                       key={subject.id}
                       onClick={() => setSelectedSubject(subject)}
-                      className={`w-full text-left px-4 py-4 rounded-xl transition-all duration-300 transform hover:scale-[1.02] ${
+                      className={`w-full text-left px-4 py-4 rounded-xl transition-all duration-300 ${
                         selectedSubject?.id === subject.id
-                          ? 'bg-gradient-to-r from-purple-500/30 to-blue-500/30 text-white border-2 border-purple-400/50 shadow-lg'
-                          : 'text-gray-300 hover:bg-white/10 border-2 border-transparent hover:border-white/20'
+                          ? 'bg-blue-100 text-blue-800 border-2 border-blue-300 shadow-sm'
+                          : 'text-gray-700 hover:bg-gray-50 border-2 border-transparent hover:border-gray-200'
                       }`}
                     >
                       <div className="font-medium">{subject.name}</div>
@@ -586,15 +574,15 @@ const AdminDashboard: React.FC = () => {
             <div className="lg:col-span-3">
               {selectedSubject && (
                 <>
-                  <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 mb-6 shadow-2xl">
-                    <div className="p-6 border-b border-white/20">
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+                    <div className="p-6 border-b border-gray-200">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h2 className="text-2xl font-bold text-white flex items-center space-x-3">
-                            <Brain className="h-7 w-7 text-purple-400" />
+                          <h2 className="text-2xl font-bold text-gray-900 flex items-center space-x-3">
+                            <Brain className="h-7 w-7 text-blue-600" />
                             <span>{selectedSubject.name} Questions</span>
                           </h2>
-                          <p className="text-purple-200 mt-2">
+                          <p className="text-gray-600 mt-2">
                             Manage adaptive assessment questions for {selectedSubject.name}
                           </p>
                         </div>
@@ -618,7 +606,7 @@ const AdminDashboard: React.FC = () => {
                     </div>
 
                     {showQuestionForm && (
-                      <div className="p-6 border-b border-white/20 bg-gradient-to-r from-purple-500/10 to-blue-500/10">
+                      <div className="p-6 border-b border-gray-200 bg-gray-50">
                         <QuestionForm
                           subjects={subjects}
                           selectedSubject={selectedSubject}
@@ -652,7 +640,7 @@ const AdminDashboard: React.FC = () => {
         {activeTab === 'growth' && (
           <div className="space-y-6">
             {/* Filter Controls - Horizontal Layout */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
                 <TrendingUp className="h-5 w-5 text-blue-600" />
                 <span>Growth Analysis Filters</span>
@@ -668,7 +656,7 @@ const AdminDashboard: React.FC = () => {
                   <select
                     value={selectedSchool || ''}
                     onChange={(e) => setSelectedSchool(e.target.value ? Number(e.target.value) : null)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                   >
                     <option value="">Select School</option>
                     {schools.map((school) => (
@@ -756,9 +744,9 @@ const AdminDashboard: React.FC = () => {
             <div>
               {selectedSubject && selectedStudent ? (
                 <div className="space-y-6">
-                  <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 shadow-2xl">
-                    <h2 className="text-2xl font-bold text-white mb-3 flex items-center space-x-3">
-                      <BarChart3 className="h-7 w-7 text-emerald-400" />
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-3 flex items-center space-x-3">
+                      <BarChart3 className="h-7 w-7 text-emerald-600" />
                       <span>Student Performance Analytics</span>
                     </h2>
                     <p className="text-gray-600">
@@ -767,7 +755,7 @@ const AdminDashboard: React.FC = () => {
                   </div>
 
                   {/* Sub-tab Navigation */}
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
                     <div className="flex space-x-4">
                       <button
                         onClick={() => setGrowthSubTab('growth')}
@@ -802,7 +790,7 @@ const AdminDashboard: React.FC = () => {
                   {growthSubTab === 'growth' ? (
                     <div>
                       {growthLoading ? (
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
                           <div className="flex items-center justify-center h-64">
                             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                           </div>
@@ -810,7 +798,7 @@ const AdminDashboard: React.FC = () => {
                       ) : growthData ? (
                         <GrowthOverTimeChart data={growthData} />
                       ) : (
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
                           <div className="text-center">
                             <p className="text-gray-600">Select a subject and student to view growth data.</p>
                           </div>
@@ -820,7 +808,7 @@ const AdminDashboard: React.FC = () => {
                   ) : (
                     <div>
                       {competencyLoading ? (
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
                           <div className="flex items-center justify-center h-64">
                             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
                           </div>
@@ -831,7 +819,7 @@ const AdminDashboard: React.FC = () => {
                           growthData={competencyGrowthData}
                         />
                       ) : (
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
                           <div className="text-center">
                             <p className="text-gray-600">No competency data available for this student and subject.</p>
                           </div>
@@ -841,14 +829,14 @@ const AdminDashboard: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-8 shadow-2xl">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
                   <div className="text-center">
                     <div className="flex justify-center space-x-4 mb-6">
-                      <BookOpen className="h-12 w-12 text-purple-400" />
-                      <User className="h-12 w-12 text-emerald-400" />
+                      <BookOpen className="h-12 w-12 text-blue-600" />
+                      <User className="h-12 w-12 text-emerald-600" />
                     </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">Select Subject & Student</h3>
-                    <p className="text-gray-300">Choose both a subject and a student to view detailed growth analysis.</p>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Select Subject & Student</h3>
+                    <p className="text-gray-600">Choose both a subject and a student to view detailed growth analysis.</p>
                   </div>
                 </div>
               )}

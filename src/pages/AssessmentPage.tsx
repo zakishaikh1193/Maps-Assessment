@@ -12,10 +12,10 @@ import {
   Brain,
   Target,
   Timer,
-  BookOpen,
   User,
   Building,
-  GraduationCap
+  GraduationCap,
+  Play
 } from 'lucide-react';
 
 const AssessmentPage: React.FC = () => {
@@ -87,7 +87,7 @@ const AssessmentPage: React.FC = () => {
 
   const startAssessment = async () => {
     try {
-      const response: StartAssessmentResponse = await studentAPI.startAssessment(subjectId, period);
+      const response: StartAssessmentResponse = await studentAPI.startAssessment(subjectId, period as 'Fall' | 'Winter' | 'Spring');
       setAssessmentId(response.assessmentId);
       setCurrentQuestion(response.question);
       setStartTime(Date.now());
@@ -230,6 +230,104 @@ const AssessmentPage: React.FC = () => {
       <Navigation />
       
       <div className="flex max-w-7xl mx-auto px-4 py-6 gap-6">
+        {/* Left Sidebar */}
+        <div className="w-80 flex-shrink-0">
+          <div className="sticky top-6 space-y-6">
+            {/* Circular Timer */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <div className="flex flex-col items-center">
+                {/* Circular Progress */}
+                <div className="relative w-32 h-32 mb-4">
+                  <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 120 120">
+                    {/* Background circle */}
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="54"
+                      stroke="currentColor"
+                      strokeWidth="8"
+                      fill="transparent"
+                      className={`${getCircularProgressBgColor()} text-gray-200`}
+                    />
+                    {/* Progress circle */}
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="54"
+                      stroke="currentColor"
+                      strokeWidth="8"
+                      fill="transparent"
+                      strokeLinecap="round"
+                      strokeDasharray={`${2 * Math.PI * 54}`}
+                      strokeDashoffset={`${2 * Math.PI * 54 * (1 - getTimeProgress() / 100)}`}
+                      className={`${getCircularProgressColor()} transition-all duration-300`}
+                    />
+                  </svg>
+                  
+                  {/* Time Display */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <div className={`text-2xl font-bold font-mono ${getTimeColor()}`}>
+                      {getTimeDisplay()}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">Time Remaining</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Question Navigation */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Question Navigation</h3>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {Array.from({ length: totalQuestions }, (_, index) => {
+                  const questionNum = index + 1;
+                  const isCurrent = questionNum === currentQuestionNumber;
+                  const isAnswered = answeredQuestions.has(questionNum);
+                  
+                  return (
+                    <button
+                      key={questionNum}
+                      disabled={true} // Disable navigation for now as it's adaptive
+                      className={`w-full p-3 rounded-lg text-left transition-all duration-200 ${
+                        isCurrent
+                          ? 'bg-yellow-100 border-2 border-yellow-500 text-yellow-800'
+                          : isAnswered
+                          ? 'bg-green-100 border border-green-300 text-green-800'
+                          : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
+                      } ${isCurrent ? 'cursor-default' : 'cursor-not-allowed'}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">Question {questionNum}</span>
+                        {isCurrent && (
+                          <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                        )}
+                        {isAnswered && !isCurrent && (
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                  <span>Current</span>
+                </div>
+                <div className="flex items-center space-x-2 text-sm text-gray-600 mt-1">
+                  <CheckCircle className="h-3 w-3 text-green-600" />
+                  <span>Answered</span>
+                </div>
+                <div className="flex items-center space-x-2 text-sm text-gray-600 mt-1">
+                  <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
+                  <span>Pending</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Main Content */}
         <div className="flex-1">
           {/* Modern Header with Student Info */}
@@ -382,104 +480,6 @@ const AssessmentPage: React.FC = () => {
                   This assessment adapts to your performance in real-time. Answer correctly to receive more challenging questions, 
                   or answer incorrectly for easier ones. Your final RIT score is calculated as the average difficulty of all questions you attempted.
                 </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Sidebar */}
-        <div className="w-80 flex-shrink-0">
-          <div className="sticky top-6 space-y-6">
-            {/* Circular Timer */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <div className="flex flex-col items-center">
-                {/* Circular Progress */}
-                <div className="relative w-32 h-32 mb-4">
-                  <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 120 120">
-                    {/* Background circle */}
-                    <circle
-                      cx="60"
-                      cy="60"
-                      r="54"
-                      stroke="currentColor"
-                      strokeWidth="8"
-                      fill="transparent"
-                      className={`${getCircularProgressBgColor()} text-gray-200`}
-                    />
-                    {/* Progress circle */}
-                    <circle
-                      cx="60"
-                      cy="60"
-                      r="54"
-                      stroke="currentColor"
-                      strokeWidth="8"
-                      fill="transparent"
-                      strokeLinecap="round"
-                      strokeDasharray={`${2 * Math.PI * 54}`}
-                      strokeDashoffset={`${2 * Math.PI * 54 * (1 - getTimeProgress() / 100)}`}
-                      className={`${getCircularProgressColor()} transition-all duration-300`}
-                    />
-                  </svg>
-                  
-                  {/* Time Display */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <div className={`text-2xl font-bold font-mono ${getTimeColor()}`}>
-                      {getTimeDisplay()}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">Time Remaining</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Question Navigation */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Question Navigation</h3>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {Array.from({ length: totalQuestions }, (_, index) => {
-                  const questionNum = index + 1;
-                  const isCurrent = questionNum === currentQuestionNumber;
-                  const isAnswered = answeredQuestions.has(questionNum);
-                  
-                  return (
-                    <button
-                      key={questionNum}
-                      disabled={true} // Disable navigation for now as it's adaptive
-                      className={`w-full p-3 rounded-lg text-left transition-all duration-200 ${
-                        isCurrent
-                          ? 'bg-yellow-100 border-2 border-yellow-500 text-yellow-800'
-                          : isAnswered
-                          ? 'bg-green-100 border border-green-300 text-green-800'
-                          : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
-                      } ${isCurrent ? 'cursor-default' : 'cursor-not-allowed'}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">Question {questionNum}</span>
-                        {isCurrent && (
-                          <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                        )}
-                        {isAnswered && !isCurrent && (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-              
-              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                  <span>Current</span>
-                </div>
-                <div className="flex items-center space-x-2 text-sm text-gray-600 mt-1">
-                  <CheckCircle className="h-3 w-3 text-green-600" />
-                  <span>Answered</span>
-                </div>
-                <div className="flex items-center space-x-2 text-sm text-gray-600 mt-1">
-                  <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
-                  <span>Pending</span>
-                </div>
               </div>
             </div>
           </div>

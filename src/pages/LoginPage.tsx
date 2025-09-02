@@ -6,7 +6,6 @@ import { BarChart3, ArrowRight, Eye, EyeOff, AlertCircle, BookOpen, Target, Zap 
 const LoginPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -33,16 +32,6 @@ const LoginPage: React.FC = () => {
       setError(error.response?.data?.error || 'Invalid username or password.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const quickLogin = (role: 'admin' | 'student') => {
-    if (role === 'admin') {
-      setUsername('admin');
-      setPassword('admin123');
-    } else {
-      setUsername('student1');
-      setPassword('student123');
     }
   };
 
