@@ -15,9 +15,10 @@ import { TrendingUp, Users, Target } from 'lucide-react';
 
 interface GrowthOverTimeChartProps {
   data: GrowthOverTimeData;
+  userRole?: 'student' | 'admin';
 }
 
-const GrowthOverTimeChart: React.FC<GrowthOverTimeChartProps> = ({ data }) => {
+const GrowthOverTimeChart: React.FC<GrowthOverTimeChartProps> = ({ data, userRole = 'student' }) => {
   // Merge scores and averages into chart data
   const chartData = data.classAverages.map(classAvg => {
     const studentScore = data.studentScores.find(s => s.period === classAvg.period);
@@ -42,10 +43,10 @@ const GrowthOverTimeChart: React.FC<GrowthOverTimeChartProps> = ({ data }) => {
     };
   });
 
-  // Sort by year + assessment period order
+  // Sort by year + assessment period order (Winter → Spring → Fall)
   chartData.sort((a, b) => {
     if (a.year !== b.year) return a.year - b.year;
-    const periodOrder = { 'Fall': 1, 'Winter': 2, 'Spring': 3 };
+    const periodOrder = { 'Winter': 1, 'Spring': 2, 'Fall': 3 };
     return periodOrder[a.assessmentPeriod as keyof typeof periodOrder] -
            periodOrder[b.assessmentPeriod as keyof typeof periodOrder];
   });
@@ -77,7 +78,7 @@ const GrowthOverTimeChart: React.FC<GrowthOverTimeChartProps> = ({ data }) => {
               <span className="text-xs text-gray-500 ml-1">({dataPoint.studentCount} students)</span>
             </p>
           )}
-          {dataPoint?.districtAverage && (
+          {dataPoint?.districtAverage && userRole === 'admin' && (
             <p className="text-gray-600">
               District Average: <span className="font-medium text-red-600">{dataPoint.districtAverage}</span>
             </p>
@@ -114,7 +115,7 @@ const GrowthOverTimeChart: React.FC<GrowthOverTimeChartProps> = ({ data }) => {
                dataKey="red"
                stackId="background"
                fill={colorMap.red}
-               fillOpacity={0.2}
+               fillOpacity={0.3}
                stroke="none"
                connectNulls={true}
              />
@@ -123,7 +124,7 @@ const GrowthOverTimeChart: React.FC<GrowthOverTimeChartProps> = ({ data }) => {
                dataKey="orange"
                stackId="background"
                fill={colorMap.orange}
-               fillOpacity={0.2}
+               fillOpacity={0.3}
                stroke="none"
                connectNulls={true}
              />
@@ -132,7 +133,7 @@ const GrowthOverTimeChart: React.FC<GrowthOverTimeChartProps> = ({ data }) => {
                dataKey="yellow"
                stackId="background"
                fill={colorMap.yellow}
-               fillOpacity={0.2}
+               fillOpacity={0.3}
                stroke="none"
                connectNulls={true}
              />
@@ -141,7 +142,7 @@ const GrowthOverTimeChart: React.FC<GrowthOverTimeChartProps> = ({ data }) => {
                dataKey="green"
                stackId="background"
                fill={colorMap.green}
-               fillOpacity={0.2}
+               fillOpacity={0.3}
                stroke="none"
                connectNulls={true}
              />
@@ -150,7 +151,7 @@ const GrowthOverTimeChart: React.FC<GrowthOverTimeChartProps> = ({ data }) => {
                dataKey="blue"
                stackId="background"
                fill={colorMap.blue}
-               fillOpacity={0.2}
+               fillOpacity={0.3}
                stroke="none"
                connectNulls={true}
              />
@@ -229,10 +230,12 @@ const GrowthOverTimeChart: React.FC<GrowthOverTimeChartProps> = ({ data }) => {
             <div className="w-4 h-1 bg-gray-500 border-dashed border border-gray-500"></div>
             <span className="text-sm text-gray-600">Class Average</span>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-1 bg-red-600 border border-red-600" style={{ borderStyle: 'dashed' }}></div>
-            <span className="text-sm text-gray-600">District Average</span>
-          </div>
+          {userRole === 'admin' && (
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-1 bg-red-600 border border-red-600" style={{ borderStyle: 'dashed' }}></div>
+              <span className="text-sm text-gray-600">District Average</span>
+            </div>
+          )}
         </div>
 
         {/* RIT Score Ranges Legend */}

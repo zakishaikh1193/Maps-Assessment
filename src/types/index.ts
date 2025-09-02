@@ -168,6 +168,7 @@ export interface GrowthOverTimeData {
 export interface DetailedAssessmentResults {
   assessment: {
     id: number;
+    subjectId: number;
     subjectName: string;
     period: string;
     year: number;

@@ -9,16 +9,17 @@ interface GrowthChartProps {
 }
 
 const GrowthChart: React.FC<GrowthChartProps> = ({ data, subjectName }) => {
-  // Sort and prepare data for chart
+  // Sort and prepare data for chart (Winter → Spring → Fall)
   const chartData = data
     .sort((a, b) => {
-      const periodOrder = { 'Fall': 1, 'Winter': 2, 'Spring': 3 };
+      const periodOrder = { 'Winter': 1, 'Spring': 2, 'Fall': 3 };
       return periodOrder[a.assessmentPeriod] - periodOrder[b.assessmentPeriod];
     })
     .map((assessment) => ({
       period: assessment.assessmentPeriod,
-      score: assessment.finalScore,
-      correctAnswers: assessment.correctAnswers,
+      score: assessment.ritScore || 0,
+      correctAnswers: assessment.correctAnswers || 0,
+      totalQuestions: assessment.totalQuestions,
       dateTaken: new Date(assessment.dateTaken).toLocaleDateString()
     }));
 
@@ -37,7 +38,7 @@ const GrowthChart: React.FC<GrowthChartProps> = ({ data, subjectName }) => {
       <div className="flex items-center justify-between mb-4">
         <h4 className="text-sm font-semibold text-gray-900 flex items-center space-x-2">
           <TrendingUp className="h-4 w-4 text-blue-600" />
-          <span>{subjectName} Progress</span>
+          <span>{subjectName} RIT Score Progress</span>
         </h4>
         {chartData.length > 1 && (
           <div className={`text-sm font-medium ${growth >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -50,9 +51,9 @@ const GrowthChart: React.FC<GrowthChartProps> = ({ data, subjectName }) => {
         <LineChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="period" />
-          <YAxis domain={['dataMin - 10', 'dataMax + 10']} />
+          <YAxis domain={['dataMin - 10', 'dataMax + 10']} label={{ value: 'RIT Score', angle: -90, position: 'insideLeft' }} />
           <Tooltip 
-            formatter={(value, name) => [value, 'Skill Score']}
+            formatter={(value, name) => [value, 'RIT Score']}
             labelFormatter={(label) => `${label} Assessment`}
             contentStyle={{
               backgroundColor: 'white',
@@ -76,7 +77,7 @@ const GrowthChart: React.FC<GrowthChartProps> = ({ data, subjectName }) => {
           <div key={index} className="text-center">
             <div className="font-medium text-gray-900">{point.period}</div>
             <div className="text-blue-600 font-bold">{point.score}</div>
-            <div className="text-gray-500 text-xs">{point.correctAnswers}/10</div>
+            <div className="text-gray-500 text-xs">{point.correctAnswers}/{point.totalQuestions}</div>
           </div>
         ))}
       </div>

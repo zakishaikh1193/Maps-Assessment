@@ -58,19 +58,28 @@ const ResultsPage: React.FC = () => {
       setGrowthLoading(true);
       // Import the API function dynamically to avoid circular dependencies
       import('../services/api').then(({ studentAPI }) => {
-        // We need to get the subject ID from the assessment ID
-        // For now, we'll use a default subject ID (4 for Computer Science)
-        // In a real app, you'd get this from the assessment details
-        const subjectId = 4; // Default to Computer Science
-        studentAPI.getGrowthOverTime(subjectId)
-          .then(data => {
-            setGrowthData(data);
-            setGrowthLoading(false);
-          })
-          .catch(error => {
-            console.error('Error fetching growth data:', error);
-            setGrowthLoading(false);
+        // Get the subject ID from the assessment results
+        const subjectId = results.assessment?.subjectId;
+        console.log('Fetching growth data for subject ID:', subjectId, 'Results:', results);
+        
+        if (subjectId) {
+          studentAPI.getGrowthOverTime(subjectId)
+            .then(data => {
+              console.log('Growth data received:', data);
+              setGrowthData(data);
+              setGrowthLoading(false);
+            })
+            .catch(error => {
+              console.error('Error fetching growth data:', error);
+              setGrowthLoading(false);
+            });
+        } else {
+          console.error('No subject ID found in assessment results. Available fields:', {
+            assessment: results.assessment,
+            results: results
           });
+          setGrowthLoading(false);
+        }
       });
     }
   }, [activeTab, results, growthData, growthLoading]);
@@ -96,16 +105,18 @@ const ResultsPage: React.FC = () => {
           );
         }
         
-        // Fetch competency growth data
-        const subjectId = 4; // Default to Computer Science
-        promises.push(
-          studentAPI.getCompetencyGrowth(subjectId)
-            .then(data => setCompetencyGrowthData(data))
-            .catch(error => {
-              console.error('Error fetching competency growth:', error);
-              setCompetencyGrowthData([]);
-            })
-        );
+        // Fetch competency growth data using the actual subject ID from results
+        const competencySubjectId = results.assessment?.subjectId;
+        if (competencySubjectId) {
+          promises.push(
+            studentAPI.getCompetencyGrowth(competencySubjectId)
+              .then(data => setCompetencyGrowthData(data))
+              .catch(error => {
+                console.error('Error fetching competency growth:', error);
+                setCompetencyGrowthData([]);
+              })
+          );
+        }
         
         Promise.all(promises).finally(() => {
           setCompetencyLoading(false);
@@ -586,7 +597,7 @@ const ResultsPage: React.FC = () => {
             ) : growthData ? (
               <>
                 {/* Growth Chart */}
-                <GrowthOverTimeChart data={growthData} />
+                <GrowthOverTimeChart data={growthData} userRole="student" />
                 
                 {/* Competency Growth Summary */}
                 {competencyGrowthData.length > 0 && (

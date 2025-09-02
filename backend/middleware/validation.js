@@ -93,6 +93,19 @@ export const validateAssessmentId = [
   handleValidationErrors
 ];
 
+// Assessment configuration validation (gradeId and subjectId)
+export const validateAssessmentConfig = [
+  param('gradeId')
+    .isInt({ min: 1 })
+    .withMessage('Grade ID must be a positive integer'),
+  
+  param('subjectId')
+    .isInt({ min: 1 })
+    .withMessage('Subject ID must be a positive integer'),
+  
+  handleValidationErrors
+];
+
 // Pagination validation
 export const validatePagination = [
   query('page')
