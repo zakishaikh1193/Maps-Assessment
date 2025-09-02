@@ -1,11 +1,13 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, User, BookOpen, BarChart3 } from 'lucide-react';
+import { LogOut, User, Shield, BarChart3, Sparkles } from 'lucide-react';
 
 const Navigation: React.FC = () => {
   const { user, logout } = useAuth();
 
   if (!user) return null;
+
+  const isAdmin = user.role === 'admin';
 
   return (
     <nav className="bg-white shadow-sm border-b-2 border-yellow-400">
