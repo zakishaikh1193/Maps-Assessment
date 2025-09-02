@@ -21,7 +21,7 @@ import CompetencyForm from '../components/CompetencyForm';
 import CompetencyAnalytics from '../components/CompetencyAnalytics';
 import CSVImportModal from '../components/CSVImportModal';
 import QuestionCSVImportModal from '../components/QuestionCSVImportModal';
-import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User, Settings, Building, GraduationCap, Clock, Target, Brain, Upload } from 'lucide-react';
+import { Plus, BookOpen, Users, FileQuestion, BarChart3, TrendingUp, User, Settings, Building, GraduationCap, Clock, Target, Brain, Upload, Sparkles, Database, Activity, Zap } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
